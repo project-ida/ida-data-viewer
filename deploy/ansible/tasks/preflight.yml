@@ -1,0 +1,175 @@
+---
+- name: Require the supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['distribution_version'] == '24.04'
+      - ansible_facts['architecture'] == 'x86_64'
+    fail_msg: This installer targets a fresh, dedicated Ubuntu 24.04 amd64 VM.
+
+- name: Validate host, database and account names
+  ansible.builtin.assert:
+    that:
+      - ida_hostname is match('^(?=.{1,253}\Z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?\Z')
+      - ida_hostname != 'viewer.example.org'
+      - ida_letsencrypt_email is match('^[^\s@]+@[^\s@]+\.[^\s@]+\Z')
+      - ida_letsencrypt_email != 'you@example.org'
+      - ida_database_name is match('^[a-z][a-z0-9_]{0,62}\Z')
+      - ida_database_name not in ['postgres', 'template0', 'template1']
+      - ida_database_admin is match('^[a-z][a-z0-9_]{0,62}\Z')
+      - ida_database_reader is match('^[a-z][a-z0-9_]{0,62}\Z')
+      - ida_database_admin != ida_database_reader
+      - ida_database_admin not in ['postgres', 'public']
+      - ida_database_reader not in ['postgres', 'public']
+      - not ida_database_admin.startswith('pg_')
+      - not ida_database_reader.startswith('pg_')
+      - ida_database_port is integer
+      - ida_database_port >= 1024 and ida_database_port <= 65535
+      - ida_web_username is match('^[A-Za-z0-9_.-]+\Z')
+      - ida_cms_username is match('^[A-Za-z0-9_.-]+\Z')
+    fail_msg: Check the lowercase public hostname, Let's Encrypt email, database, accounts and port in settings.yml.
+
+- name: Identify the owner of the checkout
+  ansible.builtin.stat:
+    path: "{{ ida_web_root }}"
+  register: ida_checkout
+
+- name: Require a checkout owned by a normal user
+  ansible.builtin.assert:
+    that:
+      - ida_checkout.stat.isdir | default(false)
+      - ida_checkout.stat.uid != 0
+    fail_msg: Clone this repository into a normal sudo user's home directory before installing.
+
+- name: Read the checkout owner's home directory and primary group
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ida_checkout.stat.pw_name }}"
+
+- name: Set the installation user and home directory
+  ansible.builtin.set_fact:
+    ida_install_user: "{{ ida_checkout.stat.pw_name }}"
+    ida_install_home: "{{ ansible_facts.getent_passwd[ida_checkout.stat.pw_name][4] }}"
+
+- name: Find the installation user's primary group
+  ansible.builtin.getent:
+    database: group
+    key: "{{ ansible_facts.getent_passwd[ida_install_user][2] }}"
+  register: ida_primary_group
+
+- name: Set the installation group
+  ansible.builtin.set_fact:
+    ida_install_group: "{{ (ida_primary_group.ansible_facts.getent_group | dict2items | first).key }}"
+
+- name: Require the website to be this checkout in its owner's home directory
+  ansible.builtin.assert:
+    that:
+      - ida_web_root == (ida_source_dir | realpath)
+      - ida_web_root.startswith(ida_install_home + '/')
+    fail_msg: Run the installer from a repository cloned into a subdirectory of its owner's home directory.
+
+- name: Check the checkout path can be quoted in Apache configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - >-
+        import sys;
+        invalid = any(ord(c) < 32 or ord(c) in (34, 92, 127) for c in sys.argv[1]);
+        sys.exit('Checkout paths must not contain quotes, backslashes or control characters.' if invalid else 0)
+      - "{{ ida_web_root }}"
+  changed_when: false
+
+- name: Validate 12-72 character ASCII passwords without spaces or displaying them
+  ansible.builtin.assert:
+    that:
+      - item is string
+      - item | length >= 12 and item | length <= 72
+      - item is match('^[\x21-\x7e]+\Z')
+      - item != 'CHANGE_ME'
+    quiet: true
+    fail_msg: Use passwords of 12-72 printable ASCII characters without spaces.
+  loop:
+    - "{{ ida_database_admin_password }}"
+    - "{{ ida_database_reader_password }}"
+    - "{{ ida_web_password }}"
+    - "{{ ida_cms_password }}"
+  no_log: true
+
+- name: Validate the selected timezone
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - from zoneinfo import ZoneInfo; import sys; ZoneInfo(sys.argv[1])
+      - "{{ ida_timezone }}"
+  changed_when: false
+
+- name: Check the selected application files without reading their contents
+  ansible.builtin.stat:
+    path: "{{ ida_web_root }}/{{ item }}"
+    get_checksum: false
+    get_mime: false
+    follow: false
+  loop: "{{ ida_application_files }}"
+  register: ida_public_source_files
+
+- name: Require regular application files owned by the checkout owner
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - item.stat.uid == ida_checkout.stat.uid
+    fail_msg: Use a complete checkout owned by the installing user, with regular application files rather than symlinks.
+  loop: "{{ ida_public_source_files.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Check for an installation record
+  ansible.builtin.stat:
+    path: "{{ ida_state_dir }}/installation.json"
+  register: ida_installation_record
+
+- name: Check for an existing PostgreSQL configuration and private viewer settings
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_checksum: false
+    get_mime: false
+  loop:
+    - /etc/postgresql
+    - "{{ ida_web_root }}/config.ini"
+    - "{{ ida_web_root }}/psql_credentials.py"
+  register: ida_existing_paths
+
+- name: Refuse to adopt an existing database server or viewer installation
+  ansible.builtin.assert:
+    that:
+      - ida_installation_record.stat.exists or not item.stat.exists
+    fail_msg: Use a fresh VM and checkout. This installer does not adopt existing PostgreSQL or private viewer settings.
+  loop: "{{ ida_existing_paths.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Define the installation identity
+  ansible.builtin.set_fact:
+    ida_installation_identity:
+      database: "{{ ida_database_name }}"
+      port: "{{ ida_database_port }}"
+      admin: "{{ ida_database_admin }}"
+      reader: "{{ ida_database_reader }}"
+      hostname: "{{ ida_hostname }}"
+      web_username: "{{ ida_web_username }}"
+      web_root: "{{ ida_web_root }}"
+      install_user: "{{ ida_install_user }}"
+
+- name: Read this installer's previous installation record
+  ansible.builtin.slurp:
+    src: "{{ ida_state_dir }}/installation.json"
+  register: ida_previous_installation
+  when: ida_installation_record.stat.exists
+
+- name: Preserve the database and installation identity on repeated runs
+  ansible.builtin.assert:
+    that:
+      - (ida_previous_installation.content | b64decode | from_json) == ida_installation_identity
+    fail_msg: Keep the original hostname, website username, database, database accounts, port, checkout path and owner when rerunning this installer.
+  when: ida_installation_record.stat.exists

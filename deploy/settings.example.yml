@@ -1,0 +1,29 @@
+---
+# Copy to settings.yml, chmod 600 settings.yml, then replace the example values.
+# This installer is for a fresh, dedicated Ubuntu 24.04 amd64 VM.
+ida_hostname: viewer.example.org
+# Let's Encrypt contact address. DNS must point the hostname at this VM and
+# inbound ports 80/443 must be reachable before running the installer.
+ida_letsencrypt_email: you@example.org
+# Apache serves this checkout in its current location under your home directory.
+# No separate application installation path or certificate paths are needed.
+ida_database_name: experiments
+ida_database_port: 5432
+ida_timezone: UTC
+
+# This account owns the database and can create tables through Adminer.
+ida_database_admin: ida_admin
+ida_database_admin_password: CHANGE_ME
+
+# This is the read-only account written to the viewer's psql_credentials.py.
+ida_database_reader: ida_reader
+ida_database_reader_password: CHANGE_ME
+
+# Apache login protects the whole website, including Adminer and data downloads.
+ida_web_username: viewer
+ida_web_password: CHANGE_ME
+
+# Separate CMS login. Used only when its credentials file is first created;
+# subsequent username/password changes are made in the CMS itself.
+ida_cms_username: editor
+ida_cms_password: CHANGE_ME

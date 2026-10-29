@@ -1,0 +1,72 @@
+body {
+  margin: 5px;
+  padding: 5px;
+  background: #ffffff;
+}
+
+.dygraph {
+  width: 910px !important;
+  /* Reserve Dygraphs' default height before the data arrives. */
+  height: 320px;
+}
+
+.graph-status {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.graph-status[hidden] {
+  display: none;
+}
+
+.graph-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ddd;
+  border-top-color: #666;
+  border-radius: 50%;
+  animation: graph-spin 0.8s linear infinite;
+}
+
+@keyframes graph-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-spinner { animation: none; }
+}
+
+#editor {
+  margin-right: 10px;
+}
+
+#panelRight {
+  /* Keep the editor above graph loading and error overlays. */
+  z-index: 2;
+  box-shadow: 10px 0 15px 10px #585858;
+}
+
+#graphs {
+  display: flex;
+  flex-direction: column;
+  max-width: 1000px !important;
+}
+
+/* Only the docked editor is positioned separately; graphs stay below the header and notes. */
+#editor {
+  position: absolute;
+  top: 0;
+  right: 0;
+  max-width: 910px !important;
+  float: right !important;
+}
+
+.all-legends {
+  display: inline-block;
+  vertical-align: top;
+}

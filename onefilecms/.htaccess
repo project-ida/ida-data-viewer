@@ -1,0 +1,9 @@
+# Credentials are loaded by PHP, never served directly, even to authenticated users.
+<FilesMatch "^(?:credentials(?:\.example)?\.php|\.onefilecms-credentials-.*)$">
+  Require all denied
+</FilesMatch>
+
+# Keep logs and login-attempt counts private; PHP can still read and write them.
+<FilesMatch "(?i)\.(?:log|invalid_login_attempts)$">
+  Require all denied
+</FilesMatch>

@@ -1,0 +1,9 @@
+AuthType Basic
+AuthName "Restricted Access"
+AuthUserFile /etc/apache2/.htpasswd
+Require valid-user
+
+# Never serve private settings or DB credentials, even to authenticated users.
+<FilesMatch "^(?:config\.ini|psql_credentials\.py)$">
+  Require all denied
+</FilesMatch>

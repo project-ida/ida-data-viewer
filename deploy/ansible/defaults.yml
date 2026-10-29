@@ -1,0 +1,39 @@
+---
+ida_source_dir: "{{ playbook_dir }}/../.."
+ida_web_root: "{{ ida_source_dir | realpath }}"
+ida_private_dir: /etc/ida-data-viewer
+ida_state_dir: /var/lib/ida-data-viewer
+ida_cache_dir: /var/cache/ida-data-viewer
+ida_acme_root: /var/lib/ida-acme
+ida_certificate_dir: "/etc/letsencrypt/live/{{ ida_hostname }}"
+ida_postgresql_version: "16"
+ida_postgresql_service: postgresql@16-main
+ida_php_version: "8.3"
+ida_application_files:
+  - index.php
+  - load-panel.php
+  - show-panels.php
+  - show-tables.php
+  - viewer-config.php
+  - data-paths.php
+  - call-pyscript.php
+  - graph-generation.php
+  - cancel-graph-generation.php
+  - write-to-json.php
+  - create-panel.php
+  - create-snapshot.php
+  - delete-snapshots.php
+  - list-snapshots.php
+  - generate-graph-data.py
+  - graph_generation.py
+  - panel-schema.json
+  - linkify.js
+  - style.css
+  - custom.css
+  - LICENSE.md
+  - dockPanel/dockPanel-1.0.0.js
+  - phpFileTree/php_file_tree.php
+  - phpFileTree/php_file_tree.js
+  - onefilecms/onefilecms.php
+  - onefilecms/.htaccess
+  - postgres/adminer-6.2.0-en.php

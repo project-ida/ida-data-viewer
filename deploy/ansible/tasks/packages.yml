@@ -1,0 +1,76 @@
+---
+# Record ownership before package installation so an interrupted run can resume.
+- name: Create the private installation state directory
+  ansible.builtin.file:
+    path: "{{ ida_state_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Record the installation identity
+  ansible.builtin.copy:
+    content: "{{ ida_installation_identity | to_nice_json }}\n"
+    dest: "{{ ida_state_dir }}/installation.json"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Install repository prerequisites
+  ansible.builtin.apt:
+    name: [ca-certificates, gnupg, python3-apt]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the APT key directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download the official PostgreSQL and TimescaleDB repository keys
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "/etc/apt/keyrings/{{ item.name }}.asc"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - name: ida-postgresql
+      url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    - name: ida-timescaledb
+      url: https://packagecloud.io/timescale/timescaledb/gpgkey
+
+- name: Configure the signed package repositories
+  ansible.builtin.apt_repository:
+    repo: "{{ item.repo }}"
+    filename: "{{ item.name }}"
+    state: present
+    update_cache: true
+  loop:
+    - name: ida-postgresql
+      repo: deb [signed-by=/etc/apt/keyrings/ida-postgresql.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+    - name: ida-timescaledb
+      repo: deb [signed-by=/etc/apt/keyrings/ida-timescaledb.asc] https://packagecloud.io/timescale/timescaledb/ubuntu/ noble main
+
+- name: Install the database, web server and Python dependencies
+  ansible.builtin.apt:
+    name:
+      - postgresql-16
+      - postgresql-client-16
+      - timescaledb-2-postgresql-16
+      - apache2
+      - apache2-utils
+      - libapache2-mod-php8.3
+      - php8.3-cli
+      - php8.3-pgsql
+      - php8.3-mbstring
+      - python3-pandas
+      - python3-psycopg2
+      - python3-yaml
+      - certbot
+      - openssl
+      - tzdata
+      - acl
+    state: present

@@ -1,0 +1,40 @@
+---
+- name: Install IDA Data Viewer on a dedicated Ubuntu VM
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - defaults.yml
+    - "{{ ida_settings_file }}"
+  environment:
+    LC_ALL: C.UTF-8
+  pre_tasks:
+    - name: Check installation settings and target
+      ansible.builtin.import_tasks: tasks/preflight.yml
+      tags: preflight
+  tasks:
+    - name: Install packages
+      ansible.builtin.import_tasks: tasks/packages.yml
+    - name: Create the database and accounts
+      ansible.builtin.import_tasks: tasks/database.yml
+    - name: Configure checkout access and private settings
+      ansible.builtin.import_tasks: tasks/application.yml
+    - name: Configure Apache and HTTPS
+      ansible.builtin.import_tasks: tasks/apache.yml
+    - name: Verify the installation
+      ansible.builtin.import_tasks: tasks/verify.yml
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.systemd_service:
+        name: "{{ ida_postgresql_service }}"
+        state: restarted
+    - name: Check Apache configuration
+      ansible.builtin.command: /usr/sbin/apache2ctl configtest
+      changed_when: false
+      listen: Restart Apache
+    - name: Restart Apache service
+      ansible.builtin.systemd_service:
+        name: apache2
+        daemon_reload: true
+        state: restarted
+      listen: Restart Apache

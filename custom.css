@@ -1,0 +1,139 @@
+
+
+
+
+/* Panel header parent element single row display */
+#editor > div > div.well.well-sm > div > div > div:nth-child(1){
+    display: inline-block;
+    margin: 1%;
+    width: 200px !important;
+}
+
+/* Panel START parent element single row display */
+#editor > div > div.well.well-sm > div > div > div:nth-child(2) {
+    display: inline-block;
+    width: 250px;
+    margin: 1%;
+    margin-left: 5% !important;
+}
+
+/* Panel END parent element single row display */
+#editor > div > div.well.well-sm > div > div > div:nth-child(3){
+    display: inline-block;
+    width: 250px;
+    margin: 1%;
+    margin-left: 5% !important;
+}
+
+
+
+/* Graphs Header parent element resize */
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(1){
+    display: inline-block;
+    margin: 1%;
+    width: 200px !important;
+
+}
+/* Graphs start parent element resize */
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(2){
+    display: inline-block;
+    width: 200px;
+    margin: 1%;
+    margin-left: 5% !important;
+}
+/* Graphs end parent element resize */
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(3){
+    display: inline-block;
+    width: 200px;
+    margin: 1%;
+    margin-left: 5% !important;
+}
+
+
+
+
+
+
+
+/* bands --> item container display setting*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div{
+    display: flex !important; 
+}
+/* bands --> item container items row display setting*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div{
+    flex: 1 .5 auto !important;
+    padding: .25% !important;
+}
+
+
+
+/*Last Band  button hidden */
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > div.well.well-sm > div.btn-group > button.btn.btn-default.json-editor-btn-delete.json-editor-btntype-deletelast{
+    display: none !important;
+}
+/* All Band button hidden */
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > div.well.well-sm > div.btn-group > button.btn.btn-default.json-editor-btn-delete.json-editor-btntype-deleteall{
+    display: none !important;
+}
+
+/* bands --> item container items title font size */
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div > div > div.form-group > label{
+    font-size: 80% !important;
+}
+
+
+
+
+
+/* bands items hidden*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > div.well.well-sm > div:nth-child(1) > div > h3 > label{
+    display: none !important;
+}
+/* Graph label hidden*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > h3 > label{
+    display: none !important; 
+}
+/* Band label hidden*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > h3 > label{
+    display: none !important; 
+}
+/* Band dropdown  hidden*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > h3 > div > button{
+    display: none !important; 
+}
+/* bands dropdown hidden */
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > div.well.well-sm > div:nth-child(1) > div > h3 > div:nth-child(2) > button.btn.btn-default.json-editor-btn-collapse.json-editor-btntype-toggle{
+    display: none !important;
+}
+
+
+
+/* h3  hidden space adjustments*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > h3{
+    display: none !important;
+}
+/* h3  hidden space adjustments*/
+#editor > div > div.well.well-sm > div > div > div:nth-child(5) > div > div.well.well-sm > div:nth-child(1) > div > div.well.well-sm > div > div > div:nth-child(4) > div > h3{
+    display: none !important;
+}
+
+
+/* Compact form fields across JSONEditor */
+input.form-control,
+select.form-control,
+textarea.form-control,
+.flatpickr-input {
+    font-size: 11px !important;
+}
+
+label.control-label {
+    font-size: 11px !important;
+}
+
+#editor {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+    display: block;
+}

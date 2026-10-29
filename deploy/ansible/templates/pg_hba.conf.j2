@@ -1,0 +1,7 @@
+# Local administration uses the operating system's postgres account.
+local   all                      postgres                       peer
+local   all                      all                            peer
+host    {{ ida_database_name }}  {{ ida_database_admin }}       127.0.0.1/32  scram-sha-256
+host    {{ ida_database_name }}  {{ ida_database_reader }}      127.0.0.1/32  scram-sha-256
+host    all                      all                            127.0.0.1/32  reject
+host    all                      all                            ::1/128       reject

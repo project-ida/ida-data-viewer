@@ -1,0 +1,123 @@
+---
+- name: Configure the dedicated PostgreSQL cluster
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: /etc/postgresql/16/main/conf.d/ida.conf
+    owner: postgres
+    group: postgres
+    mode: '0644'
+  notify: Restart PostgreSQL
+
+- name: Configure local database authentication
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: /etc/postgresql/16/main/pg_hba.conf
+    owner: postgres
+    group: postgres
+    mode: '0640'
+  notify: Restart PostgreSQL
+
+- name: Enable the PostgreSQL cluster
+  ansible.builtin.systemd_service:
+    name: "{{ ida_postgresql_service }}"
+    enabled: true
+    state: started
+
+- name: Apply PostgreSQL configuration before connecting
+  ansible.builtin.meta: flush_handlers
+
+- name: Configure the application database through the local postgres account
+  become: true
+  become_user: postgres
+  module_defaults:
+    community.postgresql.postgresql_user: &ida_database_connection
+      login_user: postgres
+      login_unix_socket: /var/run/postgresql
+      login_port: "{{ ida_database_port }}"
+    community.postgresql.postgresql_db: *ida_database_connection
+    community.postgresql.postgresql_ext: *ida_database_connection
+    community.postgresql.postgresql_privs: *ida_database_connection
+  block:
+    - name: Create the database owner and read-only viewer accounts
+      community.postgresql.postgresql_user:
+        name: "{{ item.name }}"
+        password: "{{ item.password }}"
+        role_attr_flags: LOGIN,NOSUPERUSER,NOCREATEDB,NOCREATEROLE,NOREPLICATION,NOBYPASSRLS
+        trust_input: false
+      loop:
+        - name: "{{ ida_database_admin }}"
+          password: "{{ ida_database_admin_password }}"
+        - name: "{{ ida_database_reader }}"
+          password: "{{ ida_database_reader_password }}"
+      no_log: true
+
+    - name: Default viewer transactions to read-only
+      community.postgresql.postgresql_user:
+        name: "{{ ida_database_reader }}"
+        configuration:
+          default_transaction_read_only: 'on'
+        trust_input: false
+
+    - name: Create the configured database
+      community.postgresql.postgresql_db:
+        name: "{{ ida_database_name }}"
+        owner: "{{ ida_database_admin }}"
+        encoding: UTF8
+        template: template0
+        trust_input: false
+
+    - name: Enable TimescaleDB in the application database
+      community.postgresql.postgresql_ext:
+        name: timescaledb
+        login_db: "{{ ida_database_name }}"
+        state: present
+
+    - name: Restrict database access to explicitly granted accounts
+      community.postgresql.postgresql_privs:
+        login_db: "{{ ida_database_name }}"
+        type: database
+        roles: PUBLIC
+        privs: ALL
+        state: absent
+        trust_input: false
+
+    - name: Allow the viewer to connect to the database
+      community.postgresql.postgresql_privs:
+        login_db: "{{ ida_database_name }}"
+        type: database
+        roles: "{{ ida_database_reader }}"
+        privs: CONNECT
+        trust_input: false
+
+    - name: Restrict public schema creation
+      community.postgresql.postgresql_privs:
+        login_db: "{{ ida_database_name }}"
+        type: schema
+        objs: public
+        roles: PUBLIC
+        privs: CREATE
+        state: absent
+        trust_input: false
+
+    - name: Grant the viewer schema usage and SELECT on existing public tables
+      community.postgresql.postgresql_privs:
+        login_db: "{{ ida_database_name }}"
+        type: "{{ item.type }}"
+        objs: "{{ item.objs }}"
+        roles: "{{ ida_database_reader }}"
+        privs: "{{ item.privs }}"
+        trust_input: false
+      loop:
+        - {type: schema, objs: public, privs: USAGE}
+        - {type: table, objs: ALL_IN_SCHEMA, privs: SELECT}
+
+    - name: Grant viewer SELECT on future tables created by the configured administrator
+      community.postgresql.postgresql_privs:
+        login_db: "{{ ida_database_name }}"
+        type: default_privs
+        schema: public
+        objs: TABLES
+        target_roles: "{{ ida_database_admin }}"
+        roles: "{{ ida_database_reader }}"
+        privs: SELECT
+        trust_input: false

@@ -1,0 +1,249 @@
+---
+- name: Create the website password file without truncating existing entries
+  ansible.builtin.file:
+    path: "{{ ida_private_dir }}/website.htpasswd"
+    state: touch
+    access_time: preserve
+    modification_time: preserve
+    owner: root
+    group: www-data
+    mode: '0640'
+
+- name: Check the website password without exposing it in process arguments
+  ansible.builtin.command:
+    argv: [/usr/bin/htpasswd, -vi, "{{ ida_private_dir }}/website.htpasswd", "{{ ida_web_username }}"]
+    stdin: "{{ ida_web_password }}"
+  register: ida_website_password_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Set the website's bcrypt password
+  ansible.builtin.command:
+    argv: [/usr/bin/htpasswd, -Bi, "{{ ida_private_dir }}/website.htpasswd", "{{ ida_web_username }}"]
+    stdin: "{{ ida_web_password }}"
+  when: ida_website_password_check.rc != 0
+  changed_when: true
+  no_log: true
+
+- name: Set website password-file permissions
+  ansible.builtin.file:
+    path: "{{ ida_private_dir }}/website.htpasswd"
+    owner: root
+    group: www-data
+    mode: '0640'
+
+- name: Create the public ACME challenge directory
+  ansible.builtin.file:
+    path: "{{ ida_acme_root }}/.well-known/acme-challenge"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Check whether Let's Encrypt certificates are already installed
+  ansible.builtin.stat:
+    path: "{{ ida_certificate_dir }}/{{ item }}"
+    follow: true
+    get_checksum: false
+    get_mime: false
+  loop: [fullchain.pem, privkey.pem]
+  register: ida_existing_certificates
+
+- name: Enable HTTPS immediately when certificates already exist
+  ansible.builtin.set_fact:
+    ida_https_ready: "{{ ida_existing_certificates.results[0].stat.exists and ida_existing_certificates.results[1].stat.exists }}"
+
+- name: Disable Apache's event and worker MPMs
+  ansible.builtin.command:
+    argv: [/usr/sbin/a2dismod, "{{ item }}"]
+    removes: "/etc/apache2/mods-enabled/{{ item }}.load"
+  loop: [mpm_event, mpm_worker]
+  notify: Restart Apache
+
+- name: Enable prefork, PHP and the required Apache modules
+  ansible.builtin.command:
+    argv: [/usr/sbin/a2enmod, "{{ item }}"]
+    creates: "/etc/apache2/mods-enabled/{{ item }}.load"
+  loop: [mpm_prefork, php8.3, ssl, headers, env, dir, alias, auth_basic, authn_file, authz_user]
+  notify: Restart Apache
+
+- name: Enable PHP semaphore support for graph generation limits
+  ansible.builtin.command:
+    argv: [/usr/sbin/phpenmod, -v, "{{ ida_php_version }}", -s, apache2, sysvsem]
+    creates: "/etc/php/{{ ida_php_version }}/apache2/conf.d/20-sysvsem.ini"
+  notify: Restart Apache
+
+- name: Configure PHP error logging and private session storage
+  ansible.builtin.template:
+    src: php.ini.j2
+    dest: /etc/php/8.3/apache2/conf.d/99-ida.ini
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Apache
+
+- name: Create the Apache service override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/apache2.service.d
+    state: directory
+    mode: '0755'
+
+- name: Keep generated data writable by the installation user's shared group
+  ansible.builtin.copy:
+    content: "[Service]\nUMask=0002\n"
+    dest: /etc/systemd/system/apache2.service.d/ida.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Apache
+
+- name: Configure Apache's global server name
+  ansible.builtin.copy:
+    content: "ServerName {{ ida_hostname }}\n"
+    dest: /etc/apache2/conf-available/ida-servername.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Apache
+
+- name: Enable the server-name configuration
+  ansible.builtin.file:
+    src: ../conf-available/ida-servername.conf
+    dest: /etc/apache2/conf-enabled/ida-servername.conf
+    state: link
+  notify: Restart Apache
+
+- name: Install the ACME virtual host and any existing HTTPS configuration
+  ansible.builtin.template:
+    src: apache.conf.j2
+    dest: /etc/apache2/sites-available/ida-data-viewer.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Apache
+
+- name: Disable the distribution's default websites on this dedicated VM
+  ansible.builtin.file:
+    path: "/etc/apache2/sites-enabled/{{ item }}"
+    state: absent
+  loop: [000-default.conf, default-ssl.conf]
+  notify: Restart Apache
+
+- name: Enable the viewer website
+  ansible.builtin.file:
+    src: ../sites-available/ida-data-viewer.conf
+    dest: /etc/apache2/sites-enabled/ida-data-viewer.conf
+    state: link
+  notify: Restart Apache
+
+- name: Enable Apache at startup
+  ansible.builtin.systemd_service:
+    name: apache2
+    enabled: true
+    state: started
+
+- name: Apply Apache configuration before requesting a certificate
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify the unauthenticated ACME challenge route
+  block:
+    - name: Create a temporary ACME route check
+      ansible.builtin.copy:
+        content: "ida-acme-route-check\n"
+        dest: "{{ ida_acme_root }}/.well-known/acme-challenge/ida-install-check"
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Fetch the challenge check over local HTTP without a login
+      ansible.builtin.uri:
+        url: http://127.0.0.1/.well-known/acme-challenge/ida-install-check
+        headers:
+          Host: "{{ ida_hostname }}"
+        status_code: 200
+        return_content: true
+        use_proxy: false
+      register: ida_acme_route
+      failed_when: ida_acme_route.status != 200 or ida_acme_route.content != 'ida-acme-route-check\n'
+  always:
+    - name: Remove the temporary ACME route check
+      ansible.builtin.file:
+        path: "{{ ida_acme_root }}/.well-known/acme-challenge/ida-install-check"
+        state: absent
+
+- name: Create the Certbot renewal hook directory
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Reload Apache after successful certificate renewal
+  ansible.builtin.copy:
+    content: |
+      #!/bin/sh
+      set -eu
+      /usr/sbin/apache2ctl configtest
+      /usr/bin/systemctl reload apache2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/ida-apache-reload
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Obtain the hostname's Let's Encrypt certificate
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/certbot
+      - certonly
+      - --webroot
+      - --webroot-path
+      - "{{ ida_acme_root }}"
+      - --cert-name
+      - "{{ ida_hostname }}"
+      - --domains
+      - "{{ ida_hostname }}"
+      - --email
+      - "{{ ida_letsencrypt_email }}"
+      - --non-interactive
+      - --agree-tos
+      - --keep-until-expiring
+    creates: "{{ ida_certificate_dir }}/fullchain.pem"
+
+- name: Check the issued certificate and private key exist
+  ansible.builtin.stat:
+    path: "{{ ida_certificate_dir }}/{{ item }}"
+    follow: true
+    get_checksum: false
+    get_mime: false
+  loop: [fullchain.pem, privkey.pem]
+  register: ida_issued_certificates
+
+- name: Require a complete Let's Encrypt certificate before enabling HTTPS
+  ansible.builtin.assert:
+    that:
+      - ida_issued_certificates.results[0].stat.exists
+      - ida_issued_certificates.results[1].stat.exists
+    fail_msg: Certbot must issue a complete certificate. Check the hostname's DNS and public HTTP access, then rerun the installer.
+
+- name: Mark the issued certificate ready for HTTPS
+  ansible.builtin.set_fact:
+    ida_https_ready: true
+
+- name: Enable the authenticated HTTPS virtual host with the issued certificate
+  ansible.builtin.template:
+    src: apache.conf.j2
+    dest: /etc/apache2/sites-available/ida-data-viewer.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Apache
+
+- name: Enable automatic Let's Encrypt renewal
+  ansible.builtin.systemd_service:
+    name: certbot.timer
+    enabled: true
+    state: started
+
+- name: Apply HTTPS configuration before testing the website
+  ansible.builtin.meta: flush_handlers

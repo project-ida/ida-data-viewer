@@ -1,0 +1,148 @@
+---
+- name: Create the private credentials and cache directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ ida_private_dir }}", owner: root, group: www-data, mode: '0750'}
+    - {path: "{{ ida_private_dir }}/cms", owner: www-data, group: www-data, mode: '0700'}
+    - {path: "{{ ida_cache_dir }}", owner: www-data, group: www-data, mode: '0700'}
+
+- name: Identify the home-directory path components Apache must traverse
+  ansible.builtin.set_fact:
+    ida_home_path_parts: "{{ (ida_web_root | relpath(ida_install_home)).split('/') }}"
+    ida_home_parent_paths: ["{{ ida_install_home }}"]
+
+- name: Collect parent directories below the user's home
+  ansible.builtin.set_fact:
+    ida_home_parent_paths: "{{ ida_home_parent_paths + [ida_install_home + '/' + (ida_home_path_parts[:item] | join('/'))] }}"
+  loop: "{{ range(1, ida_home_path_parts | length) | list }}"
+
+- name: Allow Apache to traverse the home path without listing its contents
+  ansible.posix.acl:
+    path: "{{ item }}"
+    entity: www-data
+    etype: user
+    permissions: x
+    state: present
+  loop: "{{ ida_home_parent_paths }}"
+
+- name: Retain the installation user's ownership of the application directories
+  ansible.builtin.file:
+    path: "{{ ida_web_root }}/{{ item }}"
+    state: directory
+    owner: "{{ ida_install_user }}"
+    group: "{{ ida_install_group }}"
+    # Sticky protects user-owned source filenames from PHP replacement. Setgid
+    # gives runtime files the install user's group, allowing normal local edits.
+    mode: "{{ '3770' if item in ['', 'onefilecms'] else '0750' }}"
+  loop:
+    - ''
+    - dockPanel
+    - phpFileTree
+    - onefilecms
+    - postgres
+
+- name: Grant Apache the required directory access
+  ansible.posix.acl:
+    path: "{{ ida_web_root }}/{{ item }}"
+    entity: www-data
+    etype: user
+    permissions: "{{ 'rwx' if item in ['', 'onefilecms'] else 'rx' }}"
+    state: present
+  loop: ['', dockPanel, phpFileTree, onefilecms, postgres]
+
+- name: Create shared writable panel and generated-data directories
+  ansible.builtin.file:
+    path: "{{ ida_web_root }}/{{ item }}"
+    state: directory
+    owner: "{{ ida_install_user }}"
+    group: "{{ ida_install_group }}"
+    mode: '2770'
+  loop: [json-files, csv-files]
+
+- name: Allow Apache to read and write data, including newly created data paths
+  ansible.posix.acl:
+    path: "{{ ida_web_root }}/{{ item.0 }}"
+    entity: www-data
+    etype: user
+    permissions: rwX
+    default: "{{ item.1 }}"
+    state: present
+  loop: "{{ ['json-files', 'csv-files'] | product([false, true]) | list }}"
+
+# Grant access only to public code/assets. Never grant recursive read access to
+# the checkout: deploy/settings.yml and Git metadata must remain private.
+- name: Grant Apache read access to the application files in this checkout
+  ansible.posix.acl:
+    path: "{{ ida_web_root }}/{{ item }}"
+    entity: www-data
+    etype: user
+    permissions: r
+    state: present
+    follow: false
+  loop: "{{ ida_application_files }}"
+
+- name: Grant Apache read and traversal access to file-tree styles and images
+  ansible.posix.acl:
+    path: "{{ ida_web_root }}/phpFileTree/styles"
+    entity: www-data
+    etype: user
+    permissions: rX
+    recursive: true
+    state: present
+    follow: false
+
+- name: Identify private checkout metadata and installation tooling
+  ansible.builtin.stat:
+    path: "{{ ida_web_root }}/{{ item }}"
+    get_checksum: false
+    get_mime: false
+  loop: [.git, deploy]
+  register: ida_private_checkout_paths
+
+- name: Keep Git metadata and deployment settings accessible only to their owner
+  ansible.builtin.file:
+    path: "{{ item.stat.path }}"
+    mode: "{{ '0700' if item.stat.isdir else '0600' }}"
+  loop: "{{ ida_private_checkout_paths.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+
+- name: Install the database credentials used by PHP and Python
+  ansible.builtin.template:
+    src: psql_credentials.py.j2
+    dest: "{{ ida_web_root }}/psql_credentials.py"
+    owner: "{{ ida_install_user }}"
+    group: www-data
+    mode: '0640'
+  no_log: true
+
+- name: Create the initial viewer configuration without replacing local changes
+  ansible.builtin.template:
+    src: config.ini.j2
+    dest: "{{ ida_web_root }}/config.ini"
+    owner: "{{ ida_install_user }}"
+    group: www-data
+    mode: '0640'
+    force: false
+
+- name: Create the CMS's initial private credentials
+  ansible.builtin.command:
+    argv: [/usr/bin/php, "{{ ida_source_dir }}/onefilecms/create-credentials.php"]
+    stdin: "{{ ida_cms_username }}\n{{ ida_cms_password }}\n{{ ida_cms_password }}"
+    creates: "{{ ida_private_dir }}/cms/credentials.php"
+  environment:
+    ONEFILECMS_CREDENTIALS_FILE: "{{ ida_private_dir }}/cms/credentials.php"
+  no_log: true
+
+- name: Allow CMS credential changes through its own admin page
+  ansible.builtin.file:
+    path: "{{ ida_private_dir }}/cms/credentials.php"
+    owner: www-data
+    group: www-data
+    mode: '0600'

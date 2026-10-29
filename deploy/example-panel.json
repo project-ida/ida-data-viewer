@@ -1,0 +1,58 @@
+{
+    "header": "Synthetic pressure and radiation pulses",
+    "start": "2025-12-31T23:59:59",
+    "end": "2026-01-07T00:00:00",
+    "notes": "Synthetic demonstration data covering six days. Pressure has one record per second; its graph initially displays every 60th point (Gran. 60), with all readings retained in the full-resolution download. Gamma candidates have PSP < 0.22. Neutron candidates have PSP > 0.22 and energy > 500 (uncalibrated digitizer units). Three five-minute neutron bursts begin 24, 60 and 108 hours into the data: the total neutron rate is 20 times background and burst-neutron energies are above 500. The same time window is used for all graphs. This is illustrative synthetic data, not experimental measurements.",
+    "graphs": [
+        {
+            "header": "Pressure over time",
+            "bands": [
+                {
+                    "header": "Pressure (bar)",
+                    "device": "example_pressure",
+                    "filters": "singlechannel(1)",
+                    "granularity": "60"
+                }
+            ]
+        },
+        {
+            "header": "Gamma counts per minute",
+            "bands": [
+                {
+                    "header": "Gamma candidates: PSP < 0.22",
+                    "device": "example_pulses",
+                    "filters": "cpm(<0.22,>0)",
+                    "granularity": "1"
+                }
+            ]
+        },
+        {
+            "header": "Neutron counts per minute",
+            "bands": [
+                {
+                    "header": "Neutron candidates: PSP > 0.22, energy > 500",
+                    "device": "example_pulses",
+                    "filters": "cpm(>0.22,>500)",
+                    "granularity": "1"
+                }
+            ]
+        },
+        {
+            "header": "Pulse energy spectra",
+            "bands": [
+                {
+                    "header": "Gamma candidates: PSP < 0.22",
+                    "device": "example_pulses",
+                    "filters": "spectrum(<0.22,>0)",
+                    "granularity": "1"
+                },
+                {
+                    "header": "Neutron candidates: PSP > 0.22, energy > 500",
+                    "device": "example_pulses",
+                    "filters": "spectrum(>0.22,>500)",
+                    "granularity": "1"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,89 @@
+---
+- name: Verify the viewer account's database connection and permissions
+  community.postgresql.postgresql_query:
+    login_host: 127.0.0.1
+    login_port: "{{ ida_database_port }}"
+    login_db: "{{ ida_database_name }}"
+    login_user: "{{ ida_database_reader }}"
+    login_password: "{{ ida_database_reader_password }}"
+    query: >-
+      SELECT current_user AS viewer_user,
+      current_setting('transaction_read_only') AS read_only,
+      has_database_privilege(current_user, current_database(), 'CREATE') AS can_create_schemas,
+      has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_tables,
+      (SELECT extversion FROM pg_extension WHERE extname = 'timescaledb') AS timescaledb_version
+  register: ida_viewer_connection
+  changed_when: false
+  no_log: true
+
+- name: Check that the database account is restricted and TimescaleDB is enabled
+  ansible.builtin.assert:
+    that:
+      - ida_viewer_connection.query_result[0].viewer_user == ida_database_reader
+      - ida_viewer_connection.query_result[0].read_only == 'on'
+      - not ida_viewer_connection.query_result[0].can_create_schemas
+      - not ida_viewer_connection.query_result[0].can_create_tables
+      - ida_viewer_connection.query_result[0].timescaledb_version | length > 0
+    quiet: true
+
+# Verify the public certificate's chain and hostname against the local listener,
+# using SNI so this does not depend on public-IP hairpin routing.
+- name: Verify the Let's Encrypt certificate against the system trust store
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/openssl
+      - s_client
+      - -connect
+      - 127.0.0.1:443
+      - -servername
+      - "{{ ida_hostname }}"
+      - -verify_hostname
+      - "{{ ida_hostname }}"
+      - -verify_return_error
+      - -CApath
+      - /etc/ssl/certs
+      - -brief
+    stdin: ''
+    stdin_add_newline: false
+  changed_when: false
+  timeout: 30
+
+# These HTTP checks address the loopback IP, which differs from the certificate
+# hostname; certificate validation is performed separately immediately above.
+- name: Verify anonymous HTTPS access requires authentication
+  ansible.builtin.uri:
+    url: https://127.0.0.1/index.php
+    headers:
+      Host: "{{ ida_hostname }}"
+    validate_certs: false
+    status_code: 401
+    use_proxy: false
+
+- name: Verify authenticated homepage access and private-file restrictions
+  ansible.builtin.uri:
+    url: "https://127.0.0.1/{{ item.path }}"
+    headers:
+      Host: "{{ ida_hostname }}"
+    url_username: "{{ ida_web_username }}"
+    url_password: "{{ ida_web_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: "{{ item.status }}"
+    use_proxy: false
+  loop:
+    - {path: index.php, status: 200}
+    - {path: postgres/adminer-6.2.0-en.php, status: 200}
+    - {path: config.ini, status: 403}
+    - {path: psql_credentials.py, status: 403}
+    - {path: deploy/settings.yml, status: 403}
+    - {path: .git/HEAD, status: 403}
+  no_log: true
+
+- name: Report the installed website
+  ansible.builtin.debug:
+    msg:
+      - "Viewer: https://{{ ida_hostname }}/"
+      - "Application files and config.ini: {{ ida_web_root }} (owned by {{ ida_install_user }})."
+      - "Website login: {{ ida_web_username }}; use the password in your private settings file."
+      - "Database: {{ ida_database_name }}; Adminer administration account: {{ ida_database_admin }}."
+      - "No measurement tables, example data or panels were created."

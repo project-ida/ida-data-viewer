@@ -1,0 +1,6 @@
+# Managed by deploy/install.sh on the dedicated PostgreSQL 16 cluster.
+listen_addresses = '127.0.0.1'
+port = {{ ida_database_port }}
+shared_preload_libraries = 'timescaledb'
+password_encryption = 'scram-sha-256'
+timezone = '{{ ida_timezone }}'

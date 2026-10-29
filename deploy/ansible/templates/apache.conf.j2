@@ -1,0 +1,82 @@
+<VirtualHost *:80>
+    ServerName {{ ida_hostname }}
+    # Certificate validation and renewal must work without a website login.
+    Alias /.well-known/acme-challenge/ "{{ ida_acme_root }}/.well-known/acme-challenge/"
+    <Directory "{{ ida_acme_root }}/.well-known/acme-challenge">
+        Options -Indexes -ExecCGI -Includes -FollowSymLinks
+        AllowOverride None
+        Require all granted
+        <IfModule php_module>
+            php_admin_flag engine Off
+        </IfModule>
+    </Directory>
+    RedirectMatch permanent "^/(?!\.well-known/acme-challenge/)(.*)$" "https://{{ ida_hostname }}/$1"
+</VirtualHost>
+
+{% if ida_https_ready | default(false) %}
+<VirtualHost *:443>
+    ServerName {{ ida_hostname }}
+    DocumentRoot "{{ ida_web_root }}"
+    SSLEngine on
+    SSLCertificateFile "{{ ida_certificate_dir }}/fullchain.pem"
+    SSLCertificateKeyFile "{{ ida_certificate_dir }}/privkey.pem"
+    ErrorLog ${APACHE_LOG_DIR}/ida-data-viewer-error.log
+    CustomLog ${APACHE_LOG_DIR}/ida-data-viewer-access.log combined
+
+    <Directory "{{ ida_web_root }}">
+        Options -Indexes -ExecCGI -Includes -FollowSymLinks +SymLinksIfOwnerMatch
+        AllowOverride None
+        DirectoryIndex index.php
+        SetEnv ONEFILECMS_CREDENTIALS_FILE "{{ ida_private_dir }}/cms/credentials.php"
+        SetEnv SHOW_TABLES_CACHE_FILE "{{ ida_cache_dir }}/tables.json"
+        AuthType Basic
+        AuthName "IDA Data Viewer"
+        AuthUserFile "{{ ida_private_dir }}/website.htpasswd"
+        Require valid-user
+        <FilesMatch "(?i)\.(?:py|pyc|ini|log|invalid_login_attempts)$">
+            Require all denied
+        </FilesMatch>
+        <FilesMatch "(?i)\.(?:php[0-9]*|phtml|phar)(?:\.|$)">
+            Require all denied
+        </FilesMatch>
+        <FilesMatch "^\.">
+            Require all denied
+        </FilesMatch>
+    </Directory>
+
+    # The checkout is the website root; deployment secrets and Git metadata are
+    # private even to authenticated visitors. .htaccess overrides stay disabled.
+    <Directory "{{ ida_web_root }}/deploy">
+        Require all denied
+    </Directory>
+    <DirectoryMatch "{{ ida_web_root | regex_escape }}/(?:[^/]+/)*\.[^/]+(?:/|$)">
+        Require all denied
+    </DirectoryMatch>
+
+    # The application and CMS create runtime files. Limit executable requests
+    # to the exact installed URL paths, rather than matching filenames anywhere.
+    <LocationMatch "^/(?:(?:index|load-panel|show-panels|show-tables|call-pyscript|cancel-graph-generation|write-to-json|create-panel|create-snapshot|delete-snapshots|list-snapshots)\.php|onefilecms/onefilecms\.php|postgres/adminer-6\.2\.0-en\.php)$">
+        Require valid-user
+    </LocationMatch>
+
+    <Directory "{{ ida_web_root }}/json-files">
+        AllowOverride None
+        <FilesMatch "(?i)\.(?:php[0-9]*|phtml|phar)(?:\.|$)">
+            Require all denied
+        </FilesMatch>
+        <IfModule php_module>
+            php_admin_flag engine Off
+        </IfModule>
+    </Directory>
+    <Directory "{{ ida_web_root }}/csv-files">
+        AllowOverride None
+        <FilesMatch "(?i)\.(?:php[0-9]*|phtml|phar)(?:\.|$)">
+            Require all denied
+        </FilesMatch>
+        <IfModule php_module>
+            php_admin_flag engine Off
+        </IfModule>
+    </Directory>
+    Header always set X-Content-Type-Options "nosniff"
+</VirtualHost>
+{% endif %}

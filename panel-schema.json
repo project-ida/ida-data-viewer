@@ -1,0 +1,224 @@
+{
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "$ref": "#/definitions/panel",
+            "definitions": {
+                "band": {
+                    "type": "object",
+                    "options": {
+                        "disable_edit_json": true,
+                        "disable_properties": true,
+                        "disable_array_delete_all_rows": true,
+                        "disable_array_delete_last_row": true,
+                        "remove_empty_properties": false,
+                        "disable_array_reorder": false                        
+                    },
+                    "required": [
+                        "header",
+                        "device"
+                    ],                    
+                    "properties": {
+                        "header": {
+                            "type": "string",
+                            "title": "Label",
+                            "description": "",
+                            "options": {
+                                "input_width": "120px"
+                            }                        
+                        },
+                        "device": {
+                            "type": "string",
+                            "title": "Device",
+                            "description": "",
+                            "options": {
+                                "input_width": "120px"
+                            }                           
+                        },
+                        "channelsstart": {
+                            "type": "string",
+                            "title": "C-Start",
+                            "default": 1,
+                            "options": {
+                                "input_width": "40px",
+                                "hidden": true
+                            }                                                      
+                        },
+                        "channelsend": {
+                            "type": "string", 
+                            "title": "C-End",
+                            "default": 1,
+                            "options": {
+                                "input_width": "40px",
+                                "hidden": true
+                            }                               
+                        },                        
+                        "start": {
+                            "type": "string",
+                            "format": "datetime-local",
+                            "title": "T-Start",
+                            "description": "",
+                            "options": {
+                                "flatpickr": {
+                                    "wrap": true,
+                                    "time_24hr": true,
+                                    "allowInput": true
+                                },
+                                "input_width": "70px"
+                            }                              
+                        },
+                        "end": {
+                            "type": "string",
+                            "format": "datetime-local",
+                            "title": "T-End",
+                            "description": "",
+                            "options": {
+                                "flatpickr": {
+                                    "wrap": true,
+                                    "time_24hr": true,
+                                    "allowInput": true
+                                },
+                                "input_width": "70px"                                
+                            }                              
+                        },
+                        "filters": {
+                            "type": "string",
+                            "title": "Filters",
+                            "description": "",
+                            "options": {
+                                "input_width": "200px"
+                            }                                
+                        },
+                        "granularity": {
+                            "type": "string",
+                            "title": "Gran.",
+                            "default": 1,
+                            "description": "",
+                            "options": {
+                                "input_width": "40px"
+                            }                                
+                        }                      
+                    }
+                },
+                "graph": {
+                    "type": "object",
+                    "title": "Graph",                
+                    "options": {
+                        "disable_edit_json": true,
+                        "disable_collapse": false,
+                        "disable_properties": true,
+                        "disable_array_delete_all_rows": true,
+                        "disable_array_delete_last_row": true,
+                        "disable_array_reorder": false
+                    },     
+                    "required": [
+                        "bands"
+                    ],                                     
+                    "properties": {
+                        "header": {
+                            "type": "string",
+                            "title": "Header"
+                        },
+                        "start": {
+                            "type": "string",
+                            "format": "datetime-local",
+                            "title": "T-Start",
+                            "description": "",
+                            "options": {
+                                "flatpickr": {
+                                    "wrap": true,
+                                    "time_24hr": true,
+                                    "allowInput": true
+                                }                            
+                            }                            
+                        },
+                        "end": {
+                            "type": "string",
+                            "format": "datetime-local",
+                            "title": "T-End",
+                            "description": "",
+                            "options": {
+                                "flatpickr": {
+                                    "wrap": true,
+                                    "time_24hr": true,
+                                    "allowInput": true
+                                }
+                            }                              
+                        },
+                        "bands": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/band"
+                            },
+                            "default": [],
+                            "title": "Bands",
+                            "description": ""
+                        }
+                    }
+                },
+                "panel": {
+                    "type": "object",
+                    "options": {
+                        "disable_edit_json": false,
+                        "disable_properties": true,
+                        "disable_collapse": true,
+                        "disable_array_delete_all_rows": true,
+                        "disable_array_delete_last_row": true     
+                    },                      
+                    "properties": {
+                        "header": {
+                            "type": "string",
+                            "title": "Header",
+                            "options": {
+                                "input_width": "200px"  
+                            }
+                        },                       
+                        "start": {
+                            "type": "string",
+                            "format": "datetime-local",
+                            "title": "T-Start",
+                            "description": "",
+                            "options": {
+                                "flatpickr": {
+                                    "wrap": true,
+                                    "time_24hr": true,
+                                    "allowInput": true
+                                }
+                            }
+                        },
+                        "end": {
+                            "type": "string",
+                            "format": "datetime-local",
+                            "title": "T-End",
+                            "description": "",
+                            "options": {
+                                "flatpickr": {
+                                    "wrap": true,
+                                    "time_24hr": true,
+                                    "allowInput": true
+                                }
+                            }                            
+                        },
+                        "notes": {
+                            "type": "string",
+                            "title": "Notes",
+                            "format": "textarea",
+                            "options": {
+                                "input_height": "100px"  
+                            }
+                        }, 
+                        "graphs": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/graph"
+                            },
+                            "title": "Graphs",
+                            "description": ""
+                        }
+                    },
+                    "required": [
+                        "start"
+                    ],
+                    "title": "Panel",
+                    "description": ""
+                }
+            }
+}
