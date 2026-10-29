@@ -12,7 +12,7 @@ Private settings and runtime data are ignored by Git.
 
 | File | Purpose | Ubuntu installer behaviour |
 | --- | --- | --- |
-| `deploy/settings.yml` | Hostname, installation accounts, database name/port and initial timezone. | You create it from `deploy/settings.example.yml` before installation. |
+| `deploy/settings.yml` | Hostname, optional URL path, installation accounts, database name/port and initial timezone. | You create it from `deploy/settings.example.yml` before installation. |
 | `config.ini` | Read-only mode, graph generation limit, homepage timezone, waveform viewer and custom homepage links. | Created initially; subsequent local changes are preserved. |
 | `psql_credentials.py` | Database connection used by PHP's table list and Python's graph generator. | Generated using the configured database viewer account. |
 | `/etc/ida-data-viewer/cms/credentials.php` | CMS username and password hash. | Created initially; later account changes use the CMS administration page. |
@@ -21,6 +21,13 @@ Private settings and runtime data are ignored by Git.
 The [installer guide](../deploy/README.md#accounts-and-files) describes account
 roles and which settings are reconciled on repeated runs. It also accepts a
 private settings-file path outside the checkout.
+
+The installer uses `ida_hostname` for the domain or subdomain and `ida_url_path`
+for the optional URL path (`/` by default). For example, the hostname
+`viewer.example.org` with `ida_url_path: /data` serves the viewer at
+`https://viewer.example.org/data/`. To change the URL path, update the private
+installation settings and rerun the installer. Filesystem locations stay the
+same. See the [installation guide](../deploy/README.md#2-configure-and-run-the-installer).
 
 ## Viewer settings
 

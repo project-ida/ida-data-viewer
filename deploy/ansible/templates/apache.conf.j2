@@ -17,6 +17,15 @@
 <VirtualHost *:443>
     ServerName {{ ida_hostname }}
     DocumentRoot "{{ ida_web_root }}"
+{% if ida_url_prefix %}
+    # Mount the same checkout at the chosen URL path. Keep its original root
+    # URLs inaccessible so there is only one public mapping of the application.
+    Alias "{{ ida_url_prefix }}/" "{{ ida_web_root }}/"
+    RedirectMatch permanent "^{{ ida_url_prefix | regex_escape }}$" "https://{{ ida_hostname }}{{ ida_url_prefix }}/"
+    <LocationMatch "^(?!{{ ida_url_prefix | regex_escape }}(?:/|$))">
+        Require all denied
+    </LocationMatch>
+{% endif %}
     SSLEngine on
     SSLCertificateFile "{{ ida_certificate_dir }}/fullchain.pem"
     SSLCertificateKeyFile "{{ ida_certificate_dir }}/privkey.pem"
@@ -44,7 +53,7 @@
         </FilesMatch>
     </Directory>
 
-    # The checkout is the website root; deployment secrets and Git metadata are
+    # Deployment secrets and Git metadata in the checkout are
     # private even to authenticated visitors. .htaccess overrides stay disabled.
     <Directory "{{ ida_web_root }}/deploy">
         Require all denied
@@ -55,7 +64,7 @@
 
     # The application and CMS create runtime files. Limit executable requests
     # to the exact installed URL paths, rather than matching filenames anywhere.
-    <LocationMatch "^/(?:(?:index|load-panel|show-panels|show-tables|call-pyscript|cancel-graph-generation|write-to-json|create-panel|create-snapshot|delete-snapshots|list-snapshots)\.php|onefilecms/onefilecms\.php|postgres/adminer-6\.2\.0-en\.php)$">
+    <LocationMatch "^{{ ida_url_prefix | regex_escape }}/(?:(?:index|load-panel|show-panels|show-tables|call-pyscript|cancel-graph-generation|write-to-json|create-panel|create-snapshot|delete-snapshots|list-snapshots)\.php|onefilecms/onefilecms\.php|postgres/adminer-6\.2\.0-en\.php)$">
         Require valid-user
     </LocationMatch>
 

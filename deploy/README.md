@@ -43,6 +43,7 @@ Edit **`deploy/settings.yml`** using [the example](settings.example.yml):
 | Settings | What to choose |
 | --- | --- |
 | `ida_hostname`, `ida_letsencrypt_email` | The public hostname and certificate contact email. |
+| `ida_url_path` | Optional URL path: `/` (default), `/data`, or a nested path such as `/tools/data`. |
 | `ida_database_name`, `ida_database_port` | The application database name and local PostgreSQL port. |
 | `ida_timezone` | The timezone for your measurement timestamps; defaults to `UTC`. |
 | Database administrator and viewer accounts | Separate database usernames and passwords for administration and read-only queries. |
@@ -52,6 +53,21 @@ Replace every example password. Passwords must contain 12–72 printable ASCII
 characters without spaces. The settings file is private and ignored by Git;
 keep it for later installer runs. No other configuration files need to be
 filled out before running the installer.
+
+For example, these settings serve the viewer at `https://viewer.example.org/data/`:
+
+```yaml
+ida_hostname: viewer.example.org
+ida_url_path: /data
+```
+
+Use your own hostname in place of `viewer.example.org`. The hostname can be a
+domain or subdomain; do not include `https://` or a path in `ida_hostname`.
+URL-path segments may contain letters, numbers, underscores and hyphens. A
+trailing slash is optional in the setting. Omitting `ida_url_path` serves the
+viewer at `/`. This URL mapping does not move the checkout or its data files.
+The installer still manages a dedicated server; URLs outside a configured
+subpath are denied.
 
 ```sh
 ./deploy/install.sh
@@ -99,15 +115,18 @@ Further seed/export options are in [Synthetic data reference](#synthetic-data-re
 
 ## 4. Open the viewer
 
-Open `https://YOUR_HOSTNAME/`. The website is served at the hostname's root,
-regardless of the checkout folder's name. Sign in using `ida_web_username` and
-`ida_web_password` from your installation settings.
+Open the URL reported by the installer: `https://YOUR_HOSTNAME/` by default,
+or `https://YOUR_HOSTNAME/data/` if you selected `/data`. The URL path is
+independent of the checkout folder's name. Sign in using `ida_web_username`
+and `ida_web_password` from your installation settings.
 
 The homepage shows **Tables** and **Panels**. If you seeded the example, the two
 example tables appear and `example-panel.json` is listed under **Panels**. Open
 it to see the graphs, then click **show editor** to inspect their settings.
 You can also open it directly at
 `https://YOUR_HOSTNAME/load-panel.php?filename=example-panel.json`.
+For a `/data` installation, use
+`https://YOUR_HOSTNAME/data/load-panel.php?filename=example-panel.json` instead.
 
 The example is historical, so its table rows normally appear red: their latest
 timestamps are older than the homepage's 90-minute freshness threshold. The
@@ -194,6 +213,10 @@ Keep the original hostname, website username, database name, database accounts,
 port, checkout path and owner on repeated runs. Update source code with Git as
 your normal user, then rerun the installer to reconcile access permissions and
 managed server configuration.
+
+To change the viewer's URL path, update `ida_url_path` in the private installation
+settings and rerun the installer. Update any saved links to the new path. Panel
+files and database contents stay in the same locations.
 
 Panels, generated CSVs, table visibility and database contents are retained.
 `config.ini` and CMS credentials are created only if absent, preserving later

@@ -1,6 +1,9 @@
 ---
 ida_source_dir: "{{ playbook_dir }}/../.."
 ida_web_root: "{{ ida_source_dir | realpath }}"
+# A trailing slash is optional in settings; URL construction uses this prefix.
+ida_url_path: /
+ida_url_prefix: "{{ ida_url_path | regex_replace('/$', '') }}"
 ida_private_dir: /etc/ida-data-viewer
 ida_state_dir: /var/lib/ida-data-viewer
 ida_cache_dir: /var/cache/ida-data-viewer

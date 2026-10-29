@@ -197,7 +197,7 @@ global $_, $USERNAME, $HASHWORD, $SALT, $MAX_IDLE_TIME, $LOGIN_ATTEMPTS, $LOGIN_
 	$LANGUAGE_FILE, $ACCESS_ROOT, $ACCESS_ROOT_len, $WYSIWYG_PLUGIN, $WYSIWYG_VALID, $WYSIWYG_PLUGIN_OS, 
 	$INVALID_CHARS, $WHSPC_SLASH, $VALID_PAGES, $LOGIN_LOG_url, $LOGIN_LOG_file,
 	$ONESCRIPT, $ONESCRIPT_file, $CONFIG_FILE, $VALID_CONFIG_FILE,
-	$DOC_ROOT, $WEBSITE, $PRE_ITERATIONS, $EX, $MESSAGE, $ENC_OS, $DEFAULT_PATH,
+	$DOC_ROOT, $WEBSITE, $WEBSITE_PATH, $PRE_ITERATIONS, $EX, $MESSAGE, $ENC_OS, $DEFAULT_PATH,
 	$DELAY_Expired_Reload, $DELAY_Sort_and_Show_msgs, $DELAY_Start_Countdown, $DELAY_final_messages,
 	$MIN_DIR_ITEMS, $DIRECTORY_COLUMNS;
 
@@ -246,7 +246,9 @@ $ds_pos   = strpos($panel_root, "/") * 1;
 $DOC_ROOT = trim(substr($panel_root, $ds_pos), '/');
 
 
-$WEBSITE   = $_SERVER['HTTP_HOST'].'/';
+// Return to the viewer's URL, including any Apache subpath mapping.
+$WEBSITE_PATH = rtrim(dirname($_SERVER['SCRIPT_NAME'], 2), '/').'/';
+$WEBSITE   = $_SERVER['HTTP_HOST'].$WEBSITE_PATH;
 
 $ONESCRIPT			   = URLencode_path($_SERVER['SCRIPT_NAME']);  //Used for URL's in HTML attributes
 $ONESCRIPT_file		   = $_SERVER['SCRIPT_FILENAME'];              //Non-url file system use.
@@ -1415,7 +1417,7 @@ function Current_Path_Header() {//**********************************************
 
 
 function Page_Header() {//******************************************************
-	global  $_, $ONESCRIPT, $page, $WEBSITE, $MAIN_TITLE, $OFCMS_version, $FAVICON, $TABINDEX, $MESSAGE;
+	global  $_, $ONESCRIPT, $page, $WEBSITE, $WEBSITE_PATH, $MAIN_TITLE, $OFCMS_version, $FAVICON, $TABINDEX, $MESSAGE;
 
 	$TABINDEX = 1; //Initial tabindex
 
@@ -1423,7 +1425,7 @@ function Page_Header() {//******************************************************
 
 	$favicon_img = '';
 	if (file_exists($_SERVER['DOCUMENT_ROOT']."/".$FAVICON)) {
-		$favicon_img =  '<img src="/'.URLencode_path($FAVICON).'" alt="[favicon]">';
+		$favicon_img =  '<img src="'.hsc($WEBSITE_PATH).URLencode_path($FAVICON).'" alt="[favicon]">';
 	}
 
 	echo '<div id="header">';
@@ -1437,7 +1439,7 @@ function Page_Header() {//******************************************************
 		echo $on_php;
 		
 		echo '<div class="nav">';
-			echo '<b><a id=website href="/" tabindex='.$TABINDEX++.' target="_blank">';
+			echo '<b><a id=website href="'.hsc($WEBSITE_PATH).'" tabindex='.$TABINDEX++.' target="_blank">';
 			echo $favicon_img.' '.hsc($WEBSITE).'</a></b>';
 			if ($page != "login") {
 				echo ' | <a id=logout tabindex='.$TABINDEX++.' href="'.$ONESCRIPT.'?p=logout">'.hsc($_['Log_Out']).'</a>';

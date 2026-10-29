@@ -29,6 +29,13 @@
       - ida_cms_username is match('^[A-Za-z0-9_.-]+\Z')
     fail_msg: Check the lowercase public hostname, Let's Encrypt email, database, accounts and port in settings.yml.
 
+- name: Validate the viewer URL path
+  ansible.builtin.assert:
+    that:
+      - ida_url_path is string
+      - ida_url_path is match('^(?:/|/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+/?)\\Z')
+    fail_msg: Use / or a path such as /data or /tools/data. Path segments may contain letters, numbers, underscores and hyphens.
+
 - name: Identify the owner of the checkout
   ansible.builtin.stat:
     path: "{{ ida_web_root }}"

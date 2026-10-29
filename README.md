@@ -38,7 +38,8 @@ new measurements arrive or after changing the panel settings.
    ```
 
 3. Open `https://YOUR_HOSTNAME/` and sign in with the website account you chose
-   during setup. If you generated the example, open `example-panel.json` under
+   during setup (include your URL path if configured, for example `/data/`).
+   If you generated the example, open `example-panel.json` under
    **Panels**.
 4. Follow [Using the viewer](docs/using-viewer.md) to explore the graphs and edit
    the panel. Use **Create new panel** on the homepage to start your own panel,

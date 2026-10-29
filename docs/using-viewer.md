@@ -6,8 +6,10 @@ of prepared panels, see [deployment and access control](configuration.md#deploym
 
 ## Open the homepage
 
-Open `https://YOUR_HOSTNAME/` and enter the website username and password chosen
-during installation. The homepage has two main sections: **Tables** and **Panels**.
+Open the URL reported by the installer (`https://YOUR_HOSTNAME/` by default,
+or, for example, `https://YOUR_HOSTNAME/data/` with a configured URL path) and
+enter the website username and password chosen during installation.
+The homepage has two main sections: **Tables** and **Panels**.
 An installation can also have [custom links](configuration.md#custom-homepage-links)
 to other tools below them.
 

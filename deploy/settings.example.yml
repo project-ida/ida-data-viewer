@@ -2,6 +2,10 @@
 # Copy to settings.yml, chmod 600 settings.yml, then replace the example values.
 # This installer is for a fresh, dedicated Ubuntu 24.04 amd64 VM.
 ida_hostname: viewer.example.org
+# URL path: "/" serves the homepage at https://YOUR_HOSTNAME/.
+# Use "/data" for https://YOUR_HOSTNAME/data/ (nested paths also work).
+# This does not change the checkout folder or where data files are saved.
+ida_url_path: /
 # Let's Encrypt contact address. DNS must point the hostname at this VM and
 # inbound ports 80/443 must be reachable before running the installer.
 ida_letsencrypt_email: you@example.org

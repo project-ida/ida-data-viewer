@@ -20,7 +20,7 @@ $root = $argv[1];
 $_SERVER = ['REQUEST_METHOD' => $request['post'] === null ? 'GET' : 'POST',
     'HTTP_HOST' => 'viewer.fixture.invalid', 'HTTPS' => 'on',
     'HTTP_ORIGIN' => 'https://viewer.fixture.invalid', 'HTTP_USER_AGENT' => 'CMSFixture',
-    'SCRIPT_NAME' => '/onefilecms/onefilecms.php',
+    'SCRIPT_NAME' => $request['url_prefix'].'/onefilecms/onefilecms.php',
     'SCRIPT_FILENAME' => $root.'/onefilecms/onefilecms.php', 'DOCUMENT_ROOT' => $root,
     'SERVER_NAME' => 'viewer.fixture.invalid', 'REMOTE_ADDR' => '127.0.0.1', 'REMOTE_PORT' => '12345'];
 $_GET = $request['get']; $_POST = $request['post'] ?? []; $_FILES = $request['files']; $_COOKIE = [];
@@ -73,7 +73,7 @@ class CMSPathTests(unittest.TestCase):
         (self.nested / "reading.txt").write_text("NESTED-FIXTURE-CONTENT")
 
     def request(self, *, folder=None, filename=None, page="index", post=None,
-                authenticated=True, admin=False, files=None, recent_pages=None):
+                authenticated=True, admin=False, files=None, recent_pages=None, url_prefix=""):
         get = {"i": str(folder or self.panels).lstrip("/"), "p": page}
         if filename is not None:
             get["f"] = filename
@@ -83,7 +83,7 @@ class CMSPathTests(unittest.TestCase):
             [PHP, "-d", "display_errors=0", "-d", "disable_functions=move_uploaded_file",
              "-r", HARNESS, str(self.root)],
             input=json.dumps({"get": get, "post": post, "authenticated": authenticated,
-                              "admin": admin, "files": files or {},
+                              "admin": admin, "files": files or {}, "url_prefix": url_prefix,
                               "recent_pages": recent_pages or ["index", "index"]}),
             text=True, capture_output=True, timeout=10,
         )
@@ -98,6 +98,21 @@ class CMSPathTests(unittest.TestCase):
         self.assertEqual(status, 403, body[:600])
         self.assertNotIn("OUTSIDE-FIXTURE-CONTENT", body)
         self.assertEqual(self.outside.read_text(), "OUTSIDE-FIXTURE-CONTENT")
+
+    def test_homepage_and_cms_links_follow_the_url_path_without_moving_panel_files(self):
+        for prefix in ("", "/data", "/tools/data"):
+            with self.subTest(prefix=prefix):
+                status, body = self.request(url_prefix=prefix)
+                self.assertEqual(status, 200)
+                self.assertIn('<a id=website href="' + prefix + '/"', body)
+                self.assertIn('href="' + prefix + '/onefilecms/onefilecms.php', body)
+                status, body = self.request(folder=self.nested, filename="reading.txt",
+                                            page="raw_view", url_prefix=prefix)
+                self.assertEqual((status, body), (200, "NESTED-FIXTURE-CONTENT"))
+                status, _ = self.request(folder=self.nested, url_prefix=prefix,
+                                         post={"new_file": "Created under " + (prefix.replace('/', '-') or 'root')})
+                self.assertEqual(status, 200)
+                self.assertTrue((self.nested / ("Created under " + (prefix.replace('/', '-') or 'root'))).is_file())
 
     def test_authenticated_reads_and_edits_cannot_escape_with_a_filename(self):
         for admin in (False, True):
