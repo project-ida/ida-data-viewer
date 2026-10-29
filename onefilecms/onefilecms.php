@@ -1425,7 +1425,10 @@ function Page_Header() {//******************************************************
 
 	$favicon_img = '';
 	if (file_exists($_SERVER['DOCUMENT_ROOT']."/".$FAVICON)) {
-		$favicon_img =  '<img src="'.hsc($WEBSITE_PATH).URLencode_path($FAVICON).'" alt="[favicon]">';
+		// Alias installs use the checkout as DocumentRoot. Older installs may
+		// instead keep the favicon in a parent website's document root.
+		$favicon_base = realpath($_SERVER['DOCUMENT_ROOT']) === realpath(dirname(__DIR__)) ? $WEBSITE_PATH : '/';
+		$favicon_img =  '<img src="'.hsc($favicon_base).URLencode_path($FAVICON).'" alt="[favicon]">';
 	}
 
 	echo '<div id="header">';

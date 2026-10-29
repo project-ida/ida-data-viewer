@@ -21,7 +21,7 @@ $_SERVER = ['REQUEST_METHOD' => $request['post'] === null ? 'GET' : 'POST',
     'HTTP_HOST' => 'viewer.fixture.invalid', 'HTTPS' => 'on',
     'HTTP_ORIGIN' => 'https://viewer.fixture.invalid', 'HTTP_USER_AGENT' => 'CMSFixture',
     'SCRIPT_NAME' => $request['url_prefix'].'/onefilecms/onefilecms.php',
-    'SCRIPT_FILENAME' => $root.'/onefilecms/onefilecms.php', 'DOCUMENT_ROOT' => $root,
+    'SCRIPT_FILENAME' => $root.'/onefilecms/onefilecms.php', 'DOCUMENT_ROOT' => $request['document_root'],
     'SERVER_NAME' => 'viewer.fixture.invalid', 'REMOTE_ADDR' => '127.0.0.1', 'REMOTE_PORT' => '12345'];
 $_GET = $request['get']; $_POST = $request['post'] ?? []; $_FILES = $request['files']; $_COOKIE = [];
 if ($request['authenticated']) {
@@ -45,7 +45,8 @@ class CMSPathTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="ida-cms-path-test-")
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name) / "data"
+        self.root.mkdir()
         self.cms = self.root / "onefilecms"
         self.cms.mkdir()
         self.panels = self.root / "json-files"
@@ -73,7 +74,7 @@ class CMSPathTests(unittest.TestCase):
         (self.nested / "reading.txt").write_text("NESTED-FIXTURE-CONTENT")
 
     def request(self, *, folder=None, filename=None, page="index", post=None,
-                authenticated=True, admin=False, files=None, recent_pages=None, url_prefix=""):
+                authenticated=True, admin=False, files=None, recent_pages=None, url_prefix="", document_root=None):
         get = {"i": str(folder or self.panels).lstrip("/"), "p": page}
         if filename is not None:
             get["f"] = filename
@@ -84,6 +85,7 @@ class CMSPathTests(unittest.TestCase):
              "-r", HARNESS, str(self.root)],
             input=json.dumps({"get": get, "post": post, "authenticated": authenticated,
                               "admin": admin, "files": files or {}, "url_prefix": url_prefix,
+                              "document_root": str(document_root or self.root),
                               "recent_pages": recent_pages or ["index", "index"]}),
             text=True, capture_output=True, timeout=10,
         )
@@ -113,6 +115,24 @@ class CMSPathTests(unittest.TestCase):
                                          post={"new_file": "Created under " + (prefix.replace('/', '-') or 'root')})
                 self.assertEqual(status, 200)
                 self.assertTrue((self.nested / ("Created under " + (prefix.replace('/', '-') or 'root'))).is_file())
+
+    def test_favicon_url_matches_alias_and_existing_parent_document_root_layouts(self):
+        (self.root / "favicon.ico").write_bytes(b"SYNTHETIC-APP-ICON")
+        for prefix in ("", "/data", "/tools/data"):
+            with self.subTest(alias_prefix=prefix):
+                status, body = self.request(url_prefix=prefix)
+                self.assertEqual(status, 200)
+                self.assertIn('<img src="' + prefix + '/favicon.ico"', body)
+
+        # Existing /htdocs/data installs use /htdocs/favicon.ico, even if the
+        # viewer folder also contains an icon. Both paths are private fixtures.
+        website_root = self.root.parent
+        (website_root / "favicon.ico").write_bytes(b"SYNTHETIC-WEBSITE-ICON")
+        status, body = self.request(url_prefix="/data", document_root=website_root)
+        self.assertEqual(status, 200)
+        self.assertIn('<a id=website href="/data/"', body)
+        self.assertIn('<img src="/favicon.ico"', body)
+        self.assertNotIn('<img src="/data/favicon.ico"', body)
 
     def test_authenticated_reads_and_edits_cannot_escape_with_a_filename(self):
         for admin in (False, True):
