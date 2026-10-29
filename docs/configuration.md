@@ -218,7 +218,7 @@ not alter database tables or affect queries from panels.
 If you are configuring an existing server yourself, supply Apache/PHP,
 PostgreSQL with TimescaleDB, and Python with pandas and psycopg2. PHP needs its
 PostgreSQL, mbstring and sysvsem extensions, and graph requests must be able to run
-`python3`. PyYAML is also needed for the optional database seed script.
+`python3`. PyYAML is also needed to run the example-data seed script.
 The [installer's package list](../deploy/ansible/tasks/packages.yml) records
 its Ubuntu 24.04 stack.
 

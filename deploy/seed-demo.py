@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Generate synthetic pressure and gamma/neutron pulses with an example panel."""
+"""Generate synthetic pressure and gamma/neutron pulses with an example panel.
+
+The Ubuntu installer runs this automatically with --dataset all --if-missing
+and its private --settings file. Existing tables and panel edits are preserved.
+For manual use, --dataset all creates both tables and the panel; --start shifts
+the six-day window. --csv exports one dataset without database access, and
+--panel-only creates just the panel. Without --if-missing, existing tables are
+an error so a manual seed cannot accidentally append duplicate measurements.
+"""
 
 import argparse
 import csv
@@ -229,7 +237,7 @@ def load_settings(path):
     return settings
 
 
-def seed_database(settings, start, dataset="pressure"):
+def seed_database(settings, start, dataset="pressure", *, if_missing=False):
     """Create new example tables, committing all selected datasets together."""
     datasets = tuple(TABLE_NAMES) if dataset == "all" else (dataset,)
     table_name = TABLE_NAMES[datasets[0]]
@@ -251,12 +259,17 @@ def seed_database(settings, start, dataset="pressure"):
 
     try:
         # PostgreSQL rolls back the table, hypertable and rows together on error.
-        # Deliberately avoid IF NOT EXISTS: reruns must not append duplicates or
-        # modify measurements in an existing table with this name.
+        # Skip whole existing tables in installer mode. CREATE TABLE still has
+        # no IF NOT EXISTS, so a concurrent creation cannot receive our rows.
         with connection:
             with connection.cursor() as cursor:
                 for name in datasets:
                     table_name = TABLE_NAMES[name]
+                    if if_missing:
+                        cursor.execute("SELECT to_regclass(%s)", ("public." + table_name,))
+                        if cursor.fetchone()[0] is not None:
+                            counts[name] = None
+                            continue
                     samples = pressure_samples(start) if name == "pressure" else pulse_samples(start)
                     write_batch = write_csv if name == "pressure" else write_pulse_csv
                     table = sql.Identifier("public", table_name)
@@ -332,9 +345,12 @@ def main(argv=None):
     parser.add_argument("--start", type=parse_start, default=DEFAULT_START, help="First sample timestamp (default: 2026-01-01 00:00:00).")
     parser.add_argument("--csv", type=Path, help="Write a new CSV file instead of connecting to a database.")
     parser.add_argument("--panel-only", action="store_true", help="Create example panel JSON without accessing a database.")
+    parser.add_argument("--if-missing", action="store_true", help="Preserve existing tables when resuming installation.")
     args = parser.parse_args(argv)
     if args.csv and (args.panel_only or args.dataset == "all"):
         parser.error("Use --csv with one dataset (pressure or pulses), separately from --panel-only.")
+    if args.if_missing and (args.csv or args.panel_only):
+        parser.error("Use --if-missing only when inserting datasets into the database.")
 
     try:
         if args.panel_only:
@@ -354,21 +370,27 @@ def main(argv=None):
         else:
             settings = load_settings(args.settings)
             print("Creating example tables and inserting synthetic data…", flush=True)
-            count = seed_database(settings, args.start, args.dataset)
+            count = seed_database(settings, args.start, args.dataset, if_missing=args.if_missing)
             if args.dataset == "all":
                 for name, total in count.items():
-                    print(f"Inserted {total:,} records into public.{TABLE_NAMES[name]}; viewer SELECT access granted.")
+                    if total is None:
+                        print(f"Preserved existing public.{TABLE_NAMES[name]}.")
+                    else:
+                        print(f"Inserted {total:,} records into public.{TABLE_NAMES[name]}; viewer SELECT access granted.")
                 try:
                     created = write_example_panel(args.start)
                 except OSError as error:
                     raise RuntimeError(
-                        f"Both tables were seeded, but the panel could not be written: {error}. "
-                        "Run --panel-only after correcting the file permissions."
+                        f"Example tables are available, but the panel could not be written: {error}. "
+                        "Correct the file permissions, then rerun the installer or use --panel-only."
                     ) from None
                 print(f"{'Created' if created else 'Preserved existing panel:'} {DEFAULT_PANEL}")
                 print("Panel URL: load-panel.php?filename=example-panel.json")
             else:
-                print(f"Inserted {count:,} records into public.{TABLE_NAMES[args.dataset]}; viewer SELECT access granted.")
+                if count is None:
+                    print(f"Preserved existing public.{TABLE_NAMES[args.dataset]}.")
+                else:
+                    print(f"Inserted {count:,} records into public.{TABLE_NAMES[args.dataset]}; viewer SELECT access granted.")
     except (OSError, ValueError, RuntimeError) as error:
         parser.exit(1, f"Error: {error}\n")
 

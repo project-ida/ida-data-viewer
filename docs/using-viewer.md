@@ -65,14 +65,14 @@ panel to open it in a new tab.
 
 Panel folders do not select databases. A panel can combine tables from the
 installation's single configured database, regardless of its folder location.
-Use **Create new panel** to start an empty panel, or create the
-[example](../deploy/README.md#3-create-the-example-data-and-panel) to explore
+Use **Create new panel** to start an empty panel, or open the
+[installed example](../deploy/README.md#synthetic-data-reference) to explore
 synthetic measurements and configured graphs.
 
 ## Explore the example panel
 
-After running `python3 deploy/seed-demo.py --dataset all`, open
-`example-panel.json` from the homepage. It contains:
+The Ubuntu installer creates `example-panel.json` automatically. Open it from
+the homepage. It contains:
 
 | Graph | What it demonstrates |
 | --- | --- |
@@ -81,8 +81,8 @@ After running `python3 deploy/seed-demo.py --dataset all`, open
 | Neutron counts per minute | `cpm(>0.22,>500)` counts pulses with PSP above 0.22 and energy above 500. |
 | Pulse energy spectra | Two `spectrum(...)` bands compare the same gamma and neutron selections across the full time window. |
 
-The data span six days, starting at `2026-01-01 00:00:00` unless a different
-`--start` was supplied. Three five-minute neutron bursts start 24, 60 and 108
+The installed data span six days, starting at `2026-01-01 00:00:00`.
+Three five-minute neutron bursts start 24, 60 and 108
 hours into the data. The measurements and thresholds are illustrative.
 
 Move the pointer over a graph to inspect values in its legend. Drag across a

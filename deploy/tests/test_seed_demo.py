@@ -12,9 +12,11 @@ import math
 from pathlib import Path
 import random
 from statistics import mean, pvariance
+import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 spec = importlib.util.spec_from_file_location(
@@ -22,6 +24,84 @@ spec = importlib.util.spec_from_file_location(
 )
 seed = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(seed)
+
+
+class SeedDatabaseTests(unittest.TestCase):
+    """Exercise seeding and recovery with a fake driver, never a live database."""
+
+    def setUp(self):
+        class DatabaseError(Exception):
+            diag = SimpleNamespace(message_primary="Synthetic database failure")
+
+        class DuplicateTable(DatabaseError):
+            pass
+
+        self.connection = MagicMock()
+        self.connection.__enter__.return_value = self.connection
+        self.cursor = self.connection.cursor.return_value.__enter__.return_value
+        self.driver = SimpleNamespace(
+            connect=MagicMock(return_value=self.connection), Error=DatabaseError,
+            errors=SimpleNamespace(DuplicateTable=DuplicateTable),
+            sql=SimpleNamespace(SQL=str, Identifier=lambda *parts: ".".join('"' + p + '"' for p in parts)),
+        )
+        self.settings = {"ida_database_port": 5432, "ida_database_name": "fixture",
+                         "ida_database_admin": "fixture_admin", "ida_database_reader": "fixture_reader",
+                         "ida_database_admin_password": "synthetic-password"}
+        self.pulses = [(seed.DEFAULT_START + timedelta(seconds=n, microseconds=500_000),
+                        (0.3, 650), 500_000_000_000) for n in (0, 1)]
+        self.pressure_summary = (3, seed.DEFAULT_START, seed.DEFAULT_START + timedelta(seconds=2))
+        self.pulse_summary = (2, self.pulses[0][0], self.pulses[-1][0])
+        self.addCleanup(patch.stopall)
+        patch.dict(sys.modules, {"psycopg2": self.driver}).start()
+        patch.object(seed, "SAMPLE_COUNT", 3).start()
+        self.pulse_samples = patch.object(seed, "pulse_samples", return_value=iter(self.pulses)).start()
+
+    def test_fresh_install_creates_both_tables_and_grants_viewer_access(self):
+        self.cursor.fetchone.side_effect = [(None,), self.pressure_summary, (None,), self.pulse_summary]
+        counts = seed.seed_database(self.settings, seed.DEFAULT_START, "all", if_missing=True)
+        self.assertEqual(counts, {"pressure": 3, "pulses": 2})
+        self.assertEqual(self.cursor.copy_expert.call_count, 2)
+        queries = [str(call.args[0]) for call in self.cursor.execute.call_args_list]
+        self.assertEqual(sum("CREATE TABLE" in query for query in queries), 2)
+        self.assertEqual(sum("GRANT SELECT" in query for query in queries), 2)
+        lookups = [call.args[1] for call in self.cursor.execute.call_args_list if call.args[0] == "SELECT to_regclass(%s)"]
+        self.assertEqual(lookups, [("public.example_pressure",), ("public.example_pulses",)])
+        self.connection.close.assert_called_once()
+
+    def test_existing_pressure_table_is_not_written_while_missing_pulses_are_created(self):
+        self.cursor.fetchone.side_effect = [("public.example_pressure",), (None,), self.pulse_summary]
+        with patch.object(seed, "pressure_samples", side_effect=AssertionError("Existing pressure table touched")):
+            counts = seed.seed_database(self.settings, seed.DEFAULT_START, "all", if_missing=True)
+        self.assertEqual(counts, {"pressure": None, "pulses": 2})
+        self.assertEqual(self.cursor.copy_expert.call_count, 1)
+        writes = [str(call.args[0]) for call in self.cursor.execute.call_args_list
+                  if "CREATE TABLE" in str(call.args[0]) or "GRANT SELECT" in str(call.args[0])]
+        self.assertTrue(all('"example_pulses"' in query for query in writes))
+
+    def test_existing_tables_are_preserved_without_generating_or_inserting_records(self):
+        self.cursor.fetchone.side_effect = [("public.example_pressure",), ("public.example_pulses",)]
+        with patch.object(seed, "pressure_samples", side_effect=AssertionError("Existing table touched")):
+            counts = seed.seed_database(self.settings, seed.DEFAULT_START, "all", if_missing=True)
+        self.assertEqual(counts, {"pressure": None, "pulses": None})
+        self.cursor.copy_expert.assert_not_called()
+        self.pulse_samples.assert_not_called()
+        self.assertTrue(all(call.args[0] == "SELECT to_regclass(%s)" for call in self.cursor.execute.call_args_list))
+
+    def test_insertion_failure_exits_the_transaction_with_an_error_and_closes_connection(self):
+        self.cursor.fetchone.side_effect = [(None,), self.pressure_summary, (None,)]
+        self.cursor.copy_expert.side_effect = [None, self.driver.Error()]
+        with self.assertRaisesRegex(RuntimeError, "changes were rolled back"):
+            seed.seed_database(self.settings, seed.DEFAULT_START, "all", if_missing=True)
+        self.assertIs(self.connection.__exit__.call_args.args[0], self.driver.Error)
+        self.connection.close.assert_called_once()
+
+    def test_manual_seeding_still_refuses_an_existing_table(self):
+        self.cursor.execute.side_effect = self.driver.errors.DuplicateTable()
+        with self.assertRaisesRegex(ValueError, "already exists; no data was changed"):
+            seed.seed_database(self.settings, seed.DEFAULT_START, "all")
+        self.assertIn("CREATE TABLE", self.cursor.execute.call_args.args[0])
+        self.cursor.copy_expert.assert_not_called()
+        self.connection.close.assert_called_once()
 
 
 class PressureDataTests(unittest.TestCase):
@@ -262,8 +342,39 @@ class ExamplePanelTests(unittest.TestCase):
                   patch.object(seed, "seed_database", return_value={"pressure": 518_400, "pulses": 200_559}) as database,
                   redirect_stdout(io.StringIO())):
                 seed.main(["--dataset", "all"])
-            database.assert_called_once_with({}, seed.DEFAULT_START, "all")
+            database.assert_called_once_with({}, seed.DEFAULT_START, "all", if_missing=False)
             self.assertTrue(destination.exists())
+
+    def test_installer_mode_preserves_existing_tables_and_creates_only_a_missing_panel(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "example-panel.json"
+            with (patch.object(seed, "DEFAULT_PANEL", destination),
+                  patch.object(seed, "load_settings", return_value={}) as settings,
+                  patch.object(seed, "seed_database", return_value={"pressure": None, "pulses": None}) as database,
+                  redirect_stdout(io.StringIO())):
+                seed.main(["--dataset", "all", "--if-missing", "--settings", "invented-settings.yml"])
+                settings.assert_called_once_with(Path("invented-settings.yml"))
+                database.assert_called_once_with({}, seed.DEFAULT_START, "all", if_missing=True)
+                self.assertTrue(destination.exists())
+                destination.write_text('{"header":"User edited this panel"}')
+                seed.main(["--dataset", "all", "--if-missing"])
+            self.assertEqual(destination.read_text(), '{"header":"User edited this panel"}')
+
+    def test_installer_can_retry_panel_publication_after_database_seeding_succeeded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "example-panel.json"
+            with (patch.object(seed, "DEFAULT_PANEL", destination),
+                  patch.object(seed, "load_settings", return_value={}),
+                  patch.object(seed, "seed_database", side_effect=[{"pressure": 518_400, "pulses": 200_559},
+                                                                   {"pressure": None, "pulses": None}]),
+                  redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO())):
+                with patch.object(seed, "write_example_panel", side_effect=OSError("Synthetic disk full")):
+                    with self.assertRaises(SystemExit) as result:
+                        seed.main(["--dataset", "all", "--if-missing"])
+                    self.assertEqual(result.exception.code, 1)
+                self.assertFalse(destination.exists())
+                seed.main(["--dataset", "all", "--if-missing"])
+                self.assertTrue(destination.exists())
 
     def test_database_failure_does_not_create_a_panel(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -278,10 +389,15 @@ class ExamplePanelTests(unittest.TestCase):
             self.assertFalse(destination.exists())
 
     def test_csv_options_cannot_accidentally_seed_a_database_or_create_a_panel(self):
-        for options in (["--dataset", "all"], ["--panel-only"]):
+        for options in (["--dataset", "all"], ["--panel-only"], ["--if-missing"]):
             with self.subTest(options=options), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as result:
                 seed.main([*options, "--csv", "unused.csv"])
             self.assertEqual(result.exception.code, 2)
+
+    def test_panel_only_rejects_installer_database_mode(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as result:
+            seed.main(["--panel-only", "--if-missing"])
+        self.assertEqual(result.exception.code, 2)
 
 
 if __name__ == "__main__":

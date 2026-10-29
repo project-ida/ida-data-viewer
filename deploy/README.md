@@ -3,8 +3,9 @@
 Install the viewer on a **fresh, dedicated Ubuntu 24.04 amd64 server**, physical
 or virtual. The installer configures Apache/PHP, Python, PostgreSQL 16,
 TimescaleDB, Let's Encrypt HTTPS and website authentication on the same machine.
-It creates the database and accounts; the optional seed command then adds
-synthetic measurements and an editable example panel.
+It creates the database and accounts, and loads
+[synthetic measurements and an editable example panel](#synthetic-data-reference)
+so there is data to explore immediately.
 
 For a tour after installation, see [Using the viewer](../docs/using-viewer.md).
 For existing servers and configuration details, see
@@ -76,7 +77,8 @@ subpath are denied.
 The launcher requests sudo, installs Ansible in an isolated environment under
 `/opt/ida-deploy`, and runs the playbook locally. It installs the services,
 creates the database and configuration files, obtains the HTTPS certificate,
-and checks the resulting installation. The automated certificate request uses
+loads the example data and panel, and checks the resulting installation.
+The automated certificate request uses
 the configured contact email and accepts the Let's Encrypt subscriber agreement.
 
 You do not need to install Ansible yourself, configure a remote controller,
@@ -84,44 +86,15 @@ or edit Apache files in system directories. To use a different private
 settings-file path, pass it as the launcher's only argument. Keep differently
 named settings files outside the checkout.
 
-## 3. Create the example data and panel
-
-After installation, run this as your normal user from the repository folder:
-
-```sh
-python3 deploy/seed-demo.py --dataset all
-```
-
-This uses the database settings in private `deploy/settings.yml` to create:
-
-- `public.example_pressure`: six days of pressure readings, one per second.
-- `public.example_pulses`: synthetic gamma/neutron pulses over the same period,
-  including three five-minute neutron bursts.
-- `json-files/example-panel.json`: an editable panel with pressure, gamma CPM,
-  neutron CPM and energy-spectrum graphs.
-
-The script grants the viewer SELECT access to both tables and bulk-loads the
-records without waiting between their timestamps. Both tables are loaded in
-one transaction. If either table already exists or insertion fails, neither
-table is changed. An existing example panel and its edits are preserved.
-
-Use `--settings /path/to/settings.yml` if you installed with a different
-settings-file path. `--start '2026-02-01 00:00:00'` shifts both datasets and the
-new panel's time window. The default start is `2026-01-01 00:00:00`.
-
-The seed step is optional and is not run by the installer. Without it, the
-homepage starts with no measurement tables or panels unless you supply your own.
-Further seed/export options are in [Synthetic data reference](#synthetic-data-reference).
-
-## 4. Open the viewer
+## 3. Open the viewer
 
 Open the URL reported by the installer: `https://YOUR_HOSTNAME/` by default,
 or `https://YOUR_HOSTNAME/data/` if you selected `/data`. The URL path is
 independent of the checkout folder's name. Sign in using `ida_web_username`
 and `ida_web_password` from your installation settings.
 
-The homepage shows **Tables** and **Panels**. If you seeded the example, the two
-example tables appear and `example-panel.json` is listed under **Panels**. Open
+The homepage shows **Tables** and **Panels**. The two example tables appear and
+`example-panel.json` is listed under **Panels**. Open
 it to see the graphs, then click **show editor** to inspect their settings.
 You can also open it directly at
 `https://YOUR_HOSTNAME/load-panel.php?filename=example-panel.json`.
@@ -221,8 +194,12 @@ files and database contents stay in the same locations.
 Panels, generated CSVs, table visibility and database contents are retained.
 `config.ini` and CMS credentials are created only if absent, preserving later
 changes. Database and website passwords are reconciled to the private
-installation settings. The installer never drops the database or invokes the
-seed script.
+installation settings. The installer never drops the database.
+
+Example setup runs until its first successful completion, preserving existing
+example tables and panel edits when resuming an interrupted installation. After
+that, installer reruns skip it. You can delete the example tables or panel when
+you no longer need them; subsequent installer runs do not recreate them.
 
 The final checks verify database connectivity, TimescaleDB, the viewer account's
 restrictions, the certificate's chain/hostname, website authentication and denial
@@ -234,9 +211,26 @@ open the graph's **query** link in the viewer for diagnostics.
 
 ## Synthetic data reference
 
-These options are alternatives to the combined `--dataset all` seed command.
-Individual dataset commands create only their table; they stop if that table
-already exists. CSV export and panel-only commands do not connect to a database.
+The installer runs [seed-demo.py](seed-demo.py) automatically using the private
+deployment settings. It creates:
+
+- `public.example_pressure`: six days of pressure readings, one per second.
+- `public.example_pulses`: synthetic gamma/neutron pulses over the same period,
+  including three five-minute neutron bursts.
+- `json-files/example-panel.json`: an editable panel with pressure, gamma CPM,
+  neutron CPM and energy-spectrum graphs.
+
+The viewer has SELECT access to both tables. New example tables are bulk-loaded
+together in one transaction, without waiting between their timestamps. Existing
+tables and panel edits are preserved. The default data window starts at
+`2026-01-01 00:00:00` and covers six days. You can delete the example tables
+through Adminer and the panel through the CMS when you no longer need them.
+
+No separate seed command is needed for installation. The commands below are
+for manual data creation, inspection and export. Manual seeding stops if a table
+already exists. Use `--settings /path/to/settings.yml` for a different private
+settings-file path, or `--start '2026-02-01 00:00:00'` to shift the data window.
+CSV export and panel-only commands do not connect to a database.
 
 ### Panel creation
 

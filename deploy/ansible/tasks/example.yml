@@ -1,0 +1,41 @@
+---
+- name: Check whether example setup has already completed
+  ansible.builtin.stat:
+    path: "{{ ida_state_dir }}/example-data-created"
+  register: ida_example_setup
+
+- name: Initialise the example once without replacing existing data
+  when: not ida_example_setup.stat.exists
+  block:
+    - name: Check whether the example panel already exists
+      ansible.builtin.stat:
+        path: "{{ ida_web_root }}/json-files/example-panel.json"
+      register: ida_existing_example_panel
+
+    - name: Seed synthetic measurements and create the example panel
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - "{{ ida_source_dir }}/deploy/seed-demo.py"
+          - --settings
+          - "{{ ida_settings_file }}"
+          - --dataset
+          - all
+          - --if-missing
+        chdir: "{{ ida_web_root }}"
+      # The installer runs as root, so even root-only settings files work.
+      # --if-missing also handles retries after a database commit or manual seeding.
+
+    - name: Give the installation user ownership of the newly created panel
+      ansible.builtin.file:
+        path: "{{ ida_web_root }}/json-files/example-panel.json"
+        owner: "{{ ida_install_user }}"
+        group: "{{ ida_install_group }}"
+        mode: '0664'
+      when: not ida_existing_example_panel.stat.exists
+
+    - name: Record completed example setup
+      ansible.builtin.copy:
+        content: "Example measurements and panel initialised.\n"
+        dest: "{{ ida_state_dir }}/example-data-created"
+        mode: '0600'

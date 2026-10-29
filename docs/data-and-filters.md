@@ -10,9 +10,9 @@ graphs. Its filters can select array elements, count events in time intervals,
 or combine records into a spectrum. These operations query the data without
 changing the stored records.
 
-The examples below illustrate the shared record format. The optional
-[example seed command](../deploy/README.md#3-create-the-example-data-and-panel)
-creates pressure and pulse tables using this format. For everyday panel controls,
+The examples below illustrate the shared record format. The
+[example data included by the installer](../deploy/README.md#synthetic-data-reference)
+use pressure and pulse tables in this format. For everyday panel controls,
 see [Using the viewer](using-viewer.md).
 
 ## Table structure
@@ -32,8 +32,9 @@ SELECT create_hypertable('example_pressure', 'time');
 
 Replace `example_pressure` with your table name. Run these commands in the
 application database with an account allowed to create tables. TimescaleDB must
-already be enabled there. The Ubuntu installer creates the database and enables
-the extension; measurement tables are created separately.
+already be enabled there. The Ubuntu installer creates the database, enables
+the extension and adds the example tables. Create additional measurement tables
+for your own data as needed.
 
 | Column | Meaning |
 | --- | --- |

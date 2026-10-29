@@ -29,25 +29,18 @@ new measurements arrive or after changing the panel settings.
 
 1. Follow the [Ubuntu installation guide](deploy/README.md) on a fresh, dedicated
    Ubuntu 24.04 amd64 server. The installer configures Apache/PHP, Python,
-   PostgreSQL 16, TimescaleDB, HTTPS and password-protected website access.
-2. After installation, optionally create the example data and panel. From the
-   repository folder on that server, run:
-
-   ```sh
-   python3 deploy/seed-demo.py --dataset all
-   ```
-
-3. Open `https://YOUR_HOSTNAME/` and sign in with the website account you chose
+   PostgreSQL 16, TimescaleDB, HTTPS and password-protected website access,
+   and creates synthetic example data and an editable panel.
+2. Open `https://YOUR_HOSTNAME/` and sign in with the website account you chose
    during setup (include your URL path if configured, for example `/data/`).
-   If you generated the example, open `example-panel.json` under
-   **Panels**.
-4. Follow [Using the viewer](docs/using-viewer.md) to explore the graphs and edit
+   Open `example-panel.json` under **Panels**.
+3. Follow [Using the viewer](docs/using-viewer.md) to explore the graphs and edit
    the panel. Use **Create new panel** on the homepage to start your own panel,
    or copy an existing one through **manage panels**.
 
-The installer creates an empty database. The optional seed command adds the
-measurement tables and panel; it refuses to overwrite existing tables and
-preserves existing panel edits.
+The example is included automatically on first installation. Later installer
+runs preserve existing data and panel edits, and do not recreate examples you
+have deleted.
 
 ## Your first panel
 
@@ -86,7 +79,7 @@ connection settings, integrations and options for publishing prepared panels.
 
 | Guide | Contents |
 | --- | --- |
-| [Ubuntu installation](deploy/README.md) | Install the complete stack, generate the example, sign in and maintain the server. |
+| [Ubuntu installation](deploy/README.md) | Install the complete stack with example data, sign in and maintain the server. |
 | [Using the viewer](docs/using-viewer.md) | Homepage, table status, panels, editing, downloads and snapshots. |
 | [Data records and filters](docs/data-and-filters.md) | Measurement tables, `channels` arrays, count rates and spectra. |
 | [Configuration](docs/configuration.md) | Settings files, manual setup, waveform links and private/public deployments. |

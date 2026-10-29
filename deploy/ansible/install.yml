@@ -21,6 +21,8 @@
       ansible.builtin.import_tasks: tasks/application.yml
     - name: Configure Apache and HTTPS
       ansible.builtin.import_tasks: tasks/apache.yml
+    - name: Create the example measurements and panel
+      ansible.builtin.import_tasks: tasks/example.yml
     - name: Verify the installation
       ansible.builtin.import_tasks: tasks/verify.yml
   handlers:
