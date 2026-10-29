@@ -43,7 +43,7 @@ for name in ('pressure', 'pulses'):
 if (root / 'fail-once').exists():
     (root / 'fail-once').unlink()
     sys.exit('Synthetic interruption after database commit')
-panel = root / 'json-files/example-panel.json'
+panel = root / 'json-files/example-panel'
 if not panel.exists():
     panel.write_text('{"header":"Synthetic fixture panel","graphs":[]}')
 '''
@@ -62,7 +62,7 @@ class InstallExampleTests(unittest.TestCase):
         self.state = self.root / "private-state"
         self.state.mkdir(mode=0o700)
         self.marker = self.state / "example-data-created"
-        self.panel = self.checkout / "json-files/example-panel.json"
+        self.panel = self.checkout / "json-files/example-panel"
         self.settings = self.root / "invented settings.yml"
         self.settings.write_text("Invented fixture settings.\n")
         self.settings.chmod(0o600)

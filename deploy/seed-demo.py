@@ -27,7 +27,7 @@ DEFAULT_START = datetime(2026, 1, 1)
 SAMPLE_COUNT = 6 * 24 * 60 * 60
 BATCH_SIZE = 10_000
 TABLE_NAMES = {"pressure": "example_pressure", "pulses": "example_pulses"}
-DEFAULT_PANEL = Path(__file__).resolve().parents[1] / "json-files" / "example-panel.json"
+DEFAULT_PANEL = Path(__file__).resolve().parents[1] / "json-files" / "example-panel"
 
 # Approximate neutron-selected background from Radiation-pulse-analysis.ipynb:
 # 2.1 events/minute before an energy cut. Gamma intensity is the illustrative
@@ -356,7 +356,7 @@ def main(argv=None):
         if args.panel_only:
             created = write_example_panel(args.start)
             print(f"{'Created' if created else 'Preserved existing panel:'} {DEFAULT_PANEL}")
-            print("Panel URL: load-panel.php?filename=example-panel.json")
+            print(f"Panel URL: load-panel.php?filename={DEFAULT_PANEL.name}")
             return
         elif args.csv:
             with args.csv.open("x", newline="") as stream:
@@ -385,7 +385,7 @@ def main(argv=None):
                         "Correct the file permissions, then rerun the installer or use --panel-only."
                     ) from None
                 print(f"{'Created' if created else 'Preserved existing panel:'} {DEFAULT_PANEL}")
-                print("Panel URL: load-panel.php?filename=example-panel.json")
+                print(f"Panel URL: load-panel.php?filename={DEFAULT_PANEL.name}")
             else:
                 if count is None:
                     print(f"Preserved existing public.{TABLE_NAMES[args.dataset]}.")

@@ -108,4 +108,4 @@
       - "Application files and config.ini: {{ ida_web_root }} (owned by {{ ida_install_user }})."
       - "Website login: {{ ida_web_username }}; use the password in your private settings file."
       - "Database: {{ ida_database_name }}; Adminer administration account: {{ ida_database_admin }}."
-      - "Example panel: https://{{ ida_hostname }}{{ ida_url_prefix }}/load-panel.php?filename=example-panel.json (created on first installation)."
+      - "Example panel: https://{{ ida_hostname }}{{ ida_url_prefix }}/load-panel.php?filename=example-panel (created on first installation)."

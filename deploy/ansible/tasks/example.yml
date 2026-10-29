@@ -9,7 +9,7 @@
   block:
     - name: Check whether the example panel already exists
       ansible.builtin.stat:
-        path: "{{ ida_web_root }}/json-files/example-panel.json"
+        path: "{{ ida_web_root }}/json-files/example-panel"
       register: ida_existing_example_panel
 
     - name: Seed synthetic measurements and create the example panel
@@ -28,7 +28,7 @@
 
     - name: Give the installation user ownership of the newly created panel
       ansible.builtin.file:
-        path: "{{ ida_web_root }}/json-files/example-panel.json"
+        path: "{{ ida_web_root }}/json-files/example-panel"
         owner: "{{ ida_install_user }}"
         group: "{{ ida_install_group }}"
         mode: '0664'

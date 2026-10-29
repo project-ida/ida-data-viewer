@@ -279,6 +279,11 @@ class PulseDataTests(unittest.TestCase):
 
 
 class ExamplePanelTests(unittest.TestCase):
+    def test_default_panel_uses_the_extensionless_filename(self):
+        self.assertEqual(seed.DEFAULT_PANEL.parent.name, "json-files")
+        self.assertEqual(seed.DEFAULT_PANEL.name, "example-panel")
+        self.assertEqual(seed.DEFAULT_PANEL.suffix, "")
+
     def test_template_keeps_empty_editor_fields_for_the_existing_layout(self):
         # JSON Editor omits absent optional fields. The existing layout uses
         # their positions, including bands being the fourth graph property.
@@ -318,7 +323,7 @@ class ExamplePanelTests(unittest.TestCase):
 
     def test_new_panel_is_complete_writable_and_preserves_subsequent_edits(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "json-files" / "example-panel.json"
+            destination = Path(directory) / "json-files" / "example-panel"
             self.assertTrue(seed.write_example_panel(seed.DEFAULT_START, destination))
             self.assertEqual(json.loads(destination.read_text()), seed.example_panel(seed.DEFAULT_START))
             self.assertTrue(destination.stat().st_mode & 0o020)  # Apache group can save edits.
@@ -329,7 +334,7 @@ class ExamplePanelTests(unittest.TestCase):
 
     def test_failed_publication_leaves_no_partial_panel_or_temporary_file(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "example-panel.json"
+            destination = Path(directory) / "example-panel"
             with patch.object(seed.os, "link", side_effect=OSError("Simulated full disk")):
                 with self.assertRaises(OSError):
                     seed.write_example_panel(seed.DEFAULT_START, destination)
@@ -337,19 +342,36 @@ class ExamplePanelTests(unittest.TestCase):
 
     def test_panel_only_does_not_read_settings_or_connect_to_the_database(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "example-panel.json"
+            destination = Path(directory) / "example-panel"
+            output = io.StringIO()
             with (patch.object(seed, "DEFAULT_PANEL", destination),
                   patch.object(seed, "load_settings", side_effect=AssertionError("Settings accessed")),
                   patch.object(seed, "seed_database", side_effect=AssertionError("Database accessed")),
-                  redirect_stdout(io.StringIO())):
+                  redirect_stdout(output)):
                 seed.main(["--panel-only", "--start", "2026-02-01 00:00:00"])
             panel = json.loads(destination.read_text())
             self.assertEqual(panel["start"], "2026-01-31T23:59:59")
             self.assertEqual(panel["end"], "2026-02-07T00:00:00")
+            self.assertIn("Panel URL: load-panel.php?filename=example-panel\n", output.getvalue())
+
+    def test_new_default_does_not_rename_or_overwrite_an_existing_json_panel(self):
+        with tempfile.TemporaryDirectory() as directory:
+            legacy = Path(directory) / "example-panel.json"
+            legacy.write_text('{"header":"User edited the old panel"}\n')
+            legacy.chmod(0o640)
+            destination = Path(directory) / "example-panel"
+            with (patch.object(seed, "DEFAULT_PANEL", destination),
+                  patch.object(seed, "load_settings", side_effect=AssertionError("Settings accessed")),
+                  patch.object(seed, "seed_database", side_effect=AssertionError("Database accessed")),
+                  redirect_stdout(io.StringIO())):
+                seed.main(["--panel-only"])
+            self.assertEqual(json.loads(destination.read_text()), seed.example_panel(seed.DEFAULT_START))
+            self.assertEqual(legacy.read_text(), '{"header":"User edited the old panel"}\n')
+            self.assertEqual(legacy.stat().st_mode & 0o777, 0o640)
 
     def test_combined_seeding_creates_the_panel_after_database_success(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "example-panel.json"
+            destination = Path(directory) / "example-panel"
             with (patch.object(seed, "DEFAULT_PANEL", destination),
                   patch.object(seed, "load_settings", return_value={}),
                   patch.object(seed, "seed_database", return_value={"pressure": 518_400, "pulses": 200_559}) as database,
@@ -360,7 +382,7 @@ class ExamplePanelTests(unittest.TestCase):
 
     def test_installer_mode_preserves_existing_tables_and_creates_only_a_missing_panel(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "example-panel.json"
+            destination = Path(directory) / "example-panel"
             with (patch.object(seed, "DEFAULT_PANEL", destination),
                   patch.object(seed, "load_settings", return_value={}) as settings,
                   patch.object(seed, "seed_database", return_value={"pressure": None, "pulses": None}) as database,
@@ -375,7 +397,7 @@ class ExamplePanelTests(unittest.TestCase):
 
     def test_installer_can_retry_panel_publication_after_database_seeding_succeeded(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "example-panel.json"
+            destination = Path(directory) / "example-panel"
             with (patch.object(seed, "DEFAULT_PANEL", destination),
                   patch.object(seed, "load_settings", return_value={}),
                   patch.object(seed, "seed_database", side_effect=[{"pressure": 518_400, "pulses": 200_559},
@@ -391,7 +413,7 @@ class ExamplePanelTests(unittest.TestCase):
 
     def test_database_failure_does_not_create_a_panel(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "example-panel.json"
+            destination = Path(directory) / "example-panel"
             with (patch.object(seed, "DEFAULT_PANEL", destination),
                   patch.object(seed, "load_settings", return_value={}),
                   patch.object(seed, "seed_database", side_effect=ValueError("Table already exists")),

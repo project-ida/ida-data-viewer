@@ -71,7 +71,7 @@ synthetic measurements and configured graphs.
 
 ## Explore the example panel
 
-The Ubuntu installer creates `example-panel.json` automatically. Open it from
+The Ubuntu installer creates `example-panel` automatically. Open it from
 the homepage. It contains:
 
 | Graph | What it demonstrates |
@@ -187,7 +187,7 @@ expressions and examples for different kinds of records.
 From the homepage, open **manage panels** and sign in to OneFileCMS using the
 separate CMS account. It manages files inside `json-files/`.
 
-To reuse an existing graph configuration, copy `example-panel.json` or another
+To reuse an existing graph configuration, copy `example-panel` or another
 suitable panel using the CMS's **Copy** action. Give the copy a different filename,
 such as `my-experiment.json`. Return to the homepage, refresh the panel list, open
 the copy and edit its title, dates, tables and filters.

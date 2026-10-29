@@ -369,7 +369,7 @@ To generate graph 1 of the example panel directly with diagnostic output, run
 from the repository folder:
 
 ```sh
-python3 generate-graph-data.py "example-panel.json" 1 1
+python3 generate-graph-data.py "example-panel" 1 1
 ```
 
 Direct Python runs without `--base-url` print a relative metadata URL. They

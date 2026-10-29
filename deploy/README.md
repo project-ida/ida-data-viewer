@@ -94,12 +94,12 @@ independent of the checkout folder's name. Sign in using `ida_web_username`
 and `ida_web_password` from your installation settings.
 
 The homepage shows **Tables** and **Panels**. The two example tables appear and
-`example-panel.json` is listed under **Panels**. Open
+`example-panel` is listed under **Panels**. Open
 it to see the graphs, then click **show editor** to inspect their settings.
 You can also open it directly at
-`https://YOUR_HOSTNAME/load-panel.php?filename=example-panel.json`.
+`https://YOUR_HOSTNAME/load-panel.php?filename=example-panel`.
 For a `/data` installation, use
-`https://YOUR_HOSTNAME/data/load-panel.php?filename=example-panel.json` instead.
+`https://YOUR_HOSTNAME/data/load-panel.php?filename=example-panel` instead.
 
 The example is historical, so its table rows normally appear red: their latest
 timestamps are older than the homepage's 90-minute freshness threshold. The
@@ -217,7 +217,7 @@ deployment settings. It creates:
 - `public.example_pressure`: six days of pressure readings, one per second.
 - `public.example_pulses`: synthetic gamma/neutron pulses over the same period,
   including three five-minute neutron bursts.
-- `json-files/example-panel.json`: an editable panel with pressure, gamma CPM,
+- `json-files/example-panel`: an editable panel with pressure, gamma CPM,
   neutron CPM and energy-spectrum graphs.
 
 The viewer has SELECT access to both tables. New example tables are bulk-loaded
@@ -235,7 +235,8 @@ CSV export and panel-only commands do not connect to a database.
 ### Panel creation
 
 The seed script uses the committed [example-panel.json](example-panel.json)
-template and writes it to `json-files/example-panel.json`. The panel covers the
+template and writes it to `json-files/example-panel`, with no filename extension,
+matching panels created from the homepage. The panel covers the
 complete six-day data window, with a start just before the first sample so that
 all records fall inside the viewer's exclusive query boundaries. The panel
 has these filters:
