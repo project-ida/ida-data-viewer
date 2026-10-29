@@ -279,6 +279,19 @@ class PulseDataTests(unittest.TestCase):
 
 
 class ExamplePanelTests(unittest.TestCase):
+    def test_template_keeps_empty_editor_fields_for_the_existing_layout(self):
+        # JSON Editor omits absent optional fields. The existing layout uses
+        # their positions, including bands being the fourth graph property.
+        panel = seed.example_panel(seed.DEFAULT_START)
+        schema = json.loads((Path(__file__).resolve().parents[2] / "panel-schema.json").read_text())["definitions"]
+        for graph in panel["graphs"]:
+            self.assertTrue(schema["graph"]["properties"].keys() <= graph.keys())
+            self.assertEqual((graph["start"], graph["end"]), ("", ""))
+            for band in graph["bands"]:
+                self.assertTrue(schema["band"]["properties"].keys() <= band.keys())
+                self.assertEqual((band["start"], band["end"]), ("", ""))
+                self.assertEqual((band["channelsstart"], band["channelsend"]), ("1", "1"))
+
     def test_panel_filters_and_devices_match_the_generated_data(self):
         graphs = seed.example_panel(seed.DEFAULT_START)["graphs"]
         selections = [

@@ -6,10 +6,16 @@
     "graphs": [
         {
             "header": "Pressure over time",
+            "start": "",
+            "end": "",
             "bands": [
                 {
                     "header": "Pressure (bar)",
                     "device": "example_pressure",
+                    "channelsstart": "1",
+                    "channelsend": "1",
+                    "start": "",
+                    "end": "",
                     "filters": "singlechannel(1)",
                     "granularity": "60"
                 }
@@ -17,10 +23,16 @@
         },
         {
             "header": "Gamma counts per minute",
+            "start": "",
+            "end": "",
             "bands": [
                 {
                     "header": "Gamma candidates: PSP < 0.22",
                     "device": "example_pulses",
+                    "channelsstart": "1",
+                    "channelsend": "1",
+                    "start": "",
+                    "end": "",
                     "filters": "cpm(<0.22,>0)",
                     "granularity": "1"
                 }
@@ -28,10 +40,16 @@
         },
         {
             "header": "Neutron counts per minute",
+            "start": "",
+            "end": "",
             "bands": [
                 {
                     "header": "Neutron candidates: PSP > 0.22, energy > 500",
                     "device": "example_pulses",
+                    "channelsstart": "1",
+                    "channelsend": "1",
+                    "start": "",
+                    "end": "",
                     "filters": "cpm(>0.22,>500)",
                     "granularity": "1"
                 }
@@ -39,16 +57,26 @@
         },
         {
             "header": "Pulse energy spectra",
+            "start": "",
+            "end": "",
             "bands": [
                 {
                     "header": "Gamma candidates: PSP < 0.22",
                     "device": "example_pulses",
+                    "channelsstart": "1",
+                    "channelsend": "1",
+                    "start": "",
+                    "end": "",
                     "filters": "spectrum(<0.22,>0)",
                     "granularity": "1"
                 },
                 {
                     "header": "Neutron candidates: PSP > 0.22, energy > 500",
                     "device": "example_pulses",
+                    "channelsstart": "1",
+                    "channelsend": "1",
+                    "start": "",
+                    "end": "",
                     "filters": "spectrum(>0.22,>500)",
                     "granularity": "1"
                 }
