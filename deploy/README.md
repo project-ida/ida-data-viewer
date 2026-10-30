@@ -24,8 +24,41 @@ If you publish an IPv6 DNS record, that address must reach this server too.
 Let's Encrypt's [HTTP-01 validation](https://letsencrypt.org/docs/challenge-types/#http-01-challenge)
 requires public HTTP access. The installer does not change DNS or firewall rules.
 
+### Create a sudo user if needed
+
+If the server already has a normal user with sudo access, use that account.
+If a fresh server gives you only a `root` login, run the following commands
+**on the server as root**. Replace `alex` with your preferred username:
+
+```sh
+apt-get update
+apt-get install sudo git openssh-client
+adduser alex
+usermod -aG sudo alex
+su - alex
+```
+
+`adduser` creates the home directory and prompts for a password. That password
+is also used for sudo. `su - alex` switches to the new account and its home
+directory.
+
+Continue the installation as `alex`, so the checkout
+belongs to this account. See Ubuntu's [user management guide](https://ubuntu.com/server/docs/how-to/security/user-management/)
+for account administration.
+
+### Clone the repository
+
 Clone this repository into a folder in your home directory, for example
-`/home/alex/ida-data-viewer`, and open that folder in your terminal. Apache will
+`/home/alex/ida-data-viewer`:
+
+```sh
+cd ~
+git clone https://github.com/project-ida/ida-data-viewer.git
+cd ida-data-viewer
+```
+
+If Git is not installed yet, run `sudo apt-get update` and
+`sudo apt-get install git` first. Apache will
 serve this checkout directly. The installation user and absolute application
 path are derived from its owner and location; there is no separate copy under
 `/var/www` to maintain.
