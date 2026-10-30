@@ -8,7 +8,7 @@ function viewer_config() {
         $read_only = $config['viewer']['read_only'] ?? null;
         // Keep the previous table timestamp interpretation for existing config files.
         $timezone = $config['viewer']['display_timezone'] ?? 'America/New_York';
-        $max_graph_generators = $config['viewer']['max_graph_generators'] ?? 2;
+        $max_graph_generators = $config['viewer']['max_graph_generators'] ?? 4;
         $waveforms = $config['waveforms'] ?? [];
         $url = $waveforms['url'] ?? '';
         $table = $waveforms['index_table'] ?? 'root_files';

@@ -192,12 +192,12 @@ class GraphGenerationQueueTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=count) as pool:
             return list(pool.map(lambda graph: self.load_graph(graph, debug=debug), range(1, count + 1)))
 
-    def test_default_allows_two_generators_across_independent_php_workers(self):
+    def test_default_allows_four_generators_across_independent_php_workers(self):
         responses = self.parallel_requests()
         self.assertEqual([status for status, _ in responses], [200] * 6)
         for graph, (_, csv) in enumerate(responses, 1):
             self.assertEqual(csv, "time,value\n2026-01-01T00:00:00," + str(graph) + "\n")
-        self.assertEqual(self.peak_generators(), 2)
+        self.assertEqual(self.peak_generators(), 4)
         self.assertFalse((self.root / "psql_credentials.py").exists())
 
     def test_limit_one_serialises_generation(self):
@@ -343,6 +343,7 @@ class GraphGenerationQueueTests(unittest.TestCase):
             holder.communicate(timeout=5)
 
     def test_cancellation_stops_running_sql_and_discards_waiters_then_allows_fresh_requests(self):
+        self.configure(limit=2)
         generation = self.token()
         (self.root / "behavior.json").write_text('{"delay": 10}')
         with ThreadPoolExecutor(max_workers=6) as pool:

@@ -39,7 +39,7 @@ installation, the basic settings are:
 [viewer]
 read_only = false
 display_timezone = "UTC"
-max_graph_generators = 2
+max_graph_generators = 4
 
 [waveforms]
 url = ""
@@ -85,7 +85,7 @@ measurement timestamps and panel time windows consistent; see
 ### Graph generation limit
 
 `max_graph_generators` limits how many live graph generators may run at once
-across all users and browser tabs of this installation. It defaults to `2`,
+across all users and browser tabs of this installation. It defaults to `4`,
 including when omitted from an existing `config.ini`, and accepts integers from
 `1` to `32`. If all slots are busy, graph requests return HTTP 202 with
 `X-Graph-Generation: waiting` and `Retry-After: 2` without starting Python.
