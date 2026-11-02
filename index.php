@@ -69,11 +69,13 @@ $creds = viewer_database_credentials();
 $pgHost = $creds['PGHOST'] ?? '';
 $pgPort = $creds['PGPORT'] ?? '';
 $pgDb = $creds['PGDATABASE'] ?? '';
+$adminer_username = viewer_config()['adminer']['username'];
 $adminer_host = filter_var($pgHost, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? '[' . $pgHost . ']' : $pgHost;
 $adminer_url = 'postgres/adminer-6.2.0-en.php';
 if ($pgHost !== '' && $pgPort !== '' && $pgDb !== '') {
     $adminer_url .= '?' . http_build_query([
         'pgsql' => $adminer_host . ':' . $pgPort,
+        'username' => $adminer_username !== '' ? $adminer_username : null,
         'db' => $pgDb,
         'ns' => 'public',
     ]);

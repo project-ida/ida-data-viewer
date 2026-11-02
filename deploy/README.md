@@ -171,6 +171,8 @@ computers to connect. See the
 
 The installer generates `config.ini` and `psql_credentials.py` in your checkout,
 owned by you and readable by Apache/Python. HTTP downloads of both are blocked.
+The initial `config.ini` uses `ida_database_admin` as the **manage tables**
+username; the server, port and database come from the viewer's credentials.
 You can edit `config.ini` as your normal user to change the
 [viewer settings](../docs/configuration.md#viewer-settings).
 

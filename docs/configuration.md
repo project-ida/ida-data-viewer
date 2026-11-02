@@ -14,7 +14,7 @@ Private settings and runtime data are ignored by Git.
 | File | Purpose | Ubuntu installer behaviour |
 | --- | --- | --- |
 | `deploy/settings.yml` | Hostname, optional URL path, admin/acquisition/viewer database accounts, website/CMS accounts, database name/port and initial timezone. | You create it from `deploy/settings.example.yml` before installation. |
-| `config.ini` | Read-only mode, graph generation limit, homepage timezone, waveform viewer and custom homepage links. | Created initially; subsequent local changes are preserved. |
+| `config.ini` | Read-only mode, graph generation limit, homepage timezone, Adminer username, waveform viewer and custom homepage links. | Created initially; subsequent local changes are preserved. |
 | `psql_credentials.py` | Database connection used by PHP's table list and Python's graph generator. | Generated using the configured database viewer account. |
 | `/etc/ida-data-viewer/cms/credentials.php` | CMS username and password hash. | Created initially; later account changes use the CMS administration page. |
 | `/etc/ida-data-viewer/website.htpasswd` | Website authentication. | Managed from the private deployment settings. |
@@ -188,9 +188,19 @@ authentication. Missing or unreadable settings are reported without falling
 back to another credentials file or environment connection values.
 
 The homepage's **manage tables** link uses the same host, port and database.
-Adminer prompts separately for its username and password; neither is included
-in the link. Use an account with the permissions required for the intended
-administration. See the [Adminer reference](../postgres/README.md).
+Set its database administration username separately in `config.ini`:
+
+```ini
+[adminer]
+username = "ida_admin"
+```
+
+The installer fills this in from `ida_database_admin` when creating the initial
+configuration. An empty or omitted username lets you choose an account on
+Adminer's login screen. A configured username lets Adminer resume that account's
+remembered login when you return through **manage tables** in the same browser.
+Enter the password in Adminer; it is never added to this setting or the link.
+See the [Adminer reference](../postgres/README.md).
 
 Each band's **Device** identifies a table in that database. Panel folders are
 for organisation, including nested and archive folders. Database selection is

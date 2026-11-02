@@ -9,6 +9,8 @@ function viewer_config() {
         // Keep the previous table timestamp interpretation for existing config files.
         $timezone = $config['viewer']['display_timezone'] ?? 'America/New_York';
         $max_graph_generators = $config['viewer']['max_graph_generators'] ?? 4;
+        $adminer = $config['adminer'] ?? [];
+        $adminer_username = $adminer['username'] ?? '';
         $waveforms = $config['waveforms'] ?? [];
         $url = $waveforms['url'] ?? '';
         $table = $waveforms['index_table'] ?? 'root_files';
@@ -16,6 +18,7 @@ function viewer_config() {
         if (!is_bool($read_only)
             || !is_string($timezone) || !in_array($timezone, DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC), true)
             || !is_int($max_graph_generators) || $max_graph_generators < 1 || $max_graph_generators > 32
+            || !is_array($adminer) || !is_string($adminer_username)
             || !is_array($waveforms)
             || !is_string($url) || ($url !== '' && (
                 filter_var($url, FILTER_VALIDATE_URL) === false
@@ -24,10 +27,11 @@ function viewer_config() {
             http_response_code(503);
             header('Content-Type: application/json');
             exit(json_encode(['ok' => false, 'error' =>
-                'Viewer configuration unavailable. Check config.ini against config.example.ini: read_only must be true or false, display_timezone a timezone name, max_graph_generators an integer from 1 to 32, and waveforms a valid HTTP(S) URL (or empty) and index table name.']));
+                'Viewer configuration unavailable. Check config.ini against config.example.ini: read_only must be true or false, display_timezone a timezone name, max_graph_generators an integer from 1 to 32, adminer.username a quoted string (or empty), and waveforms a valid HTTP(S) URL (or empty) and index table name.']));
         }
         $config['viewer']['display_timezone'] = $timezone;
         $config['viewer']['max_graph_generators'] = $max_graph_generators;
+        $config['adminer'] = ['username' => $adminer_username];
         $config['waveforms'] = ['url' => $url, 'index_table' => $table];
     }
     return $config;
