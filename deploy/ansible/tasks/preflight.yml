@@ -18,16 +18,22 @@
       - ida_database_name not in ['postgres', 'template0', 'template1']
       - ida_database_admin is match('^[a-z][a-z0-9_]{0,62}\Z')
       - ida_database_reader is match('^[a-z][a-z0-9_]{0,62}\Z')
+      - ida_database_acquisition is defined
+      - ida_database_acquisition_password is defined
+      - ida_database_acquisition is match('^[a-z][a-z0-9_]{0,62}\Z')
       - ida_database_admin != ida_database_reader
+      - ida_database_acquisition not in [ida_database_admin, ida_database_reader]
       - ida_database_admin not in ['postgres', 'public']
       - ida_database_reader not in ['postgres', 'public']
+      - ida_database_acquisition not in ['postgres', 'public']
       - not ida_database_admin.startswith('pg_')
       - not ida_database_reader.startswith('pg_')
+      - not ida_database_acquisition.startswith('pg_')
       - ida_database_port is integer
       - ida_database_port >= 1024 and ida_database_port <= 65535
       - ida_web_username is match('^[A-Za-z0-9_.-]+\Z')
       - ida_cms_username is match('^[A-Za-z0-9_.-]+\Z')
-    fail_msg: Check the lowercase public hostname, Let's Encrypt email, database, accounts and port in settings.yml.
+    fail_msg: Check the hostname, email, database, port and three distinct database accounts in settings.yml. Include ida_database_acquisition and ida_database_acquisition_password.
 
 - name: Validate the viewer URL path
   ansible.builtin.assert:
@@ -99,6 +105,7 @@
   loop:
     - "{{ ida_database_admin_password }}"
     - "{{ ida_database_reader_password }}"
+    - "{{ ida_database_acquisition_password }}"
     - "{{ ida_web_password }}"
     - "{{ ida_cms_password }}"
   no_log: true
@@ -163,6 +170,7 @@
       port: "{{ ida_database_port }}"
       admin: "{{ ida_database_admin }}"
       reader: "{{ ida_database_reader }}"
+      acquisition: "{{ ida_database_acquisition }}"
       hostname: "{{ ida_hostname }}"
       web_username: "{{ ida_web_username }}"
       web_root: "{{ ida_web_root }}"

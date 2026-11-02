@@ -2,8 +2,9 @@
 
 For a new Ubuntu server, start with the [installation guide](../deploy/README.md).
 The installer creates the viewer configuration and credentials, sets file
-permissions, and configures HTTPS and website authentication. This reference
-covers later configuration changes, optional integrations and manual deployments.
+permissions, and configures HTTPS, PostgreSQL TLS and website authentication.
+This reference covers later configuration changes, optional integrations and
+manual deployments.
 
 ## Settings files
 
@@ -12,7 +13,7 @@ Private settings and runtime data are ignored by Git.
 
 | File | Purpose | Ubuntu installer behaviour |
 | --- | --- | --- |
-| `deploy/settings.yml` | Hostname, optional URL path, installation accounts, database name/port and initial timezone. | You create it from `deploy/settings.example.yml` before installation. |
+| `deploy/settings.yml` | Hostname, optional URL path, admin/acquisition/viewer database accounts, website/CMS accounts, database name/port and initial timezone. | You create it from `deploy/settings.example.yml` before installation. |
 | `config.ini` | Read-only mode, graph generation limit, homepage timezone, waveform viewer and custom homepage links. | Created initially; subsequent local changes are preserved. |
 | `psql_credentials.py` | Database connection used by PHP's table list and Python's graph generator. | Generated using the configured database viewer account. |
 | `/etc/ida-data-viewer/cms/credentials.php` | CMS username and password hash. | Created initially; later account changes use the CMS administration page. |
@@ -158,6 +159,15 @@ Each installation uses one PostgreSQL database with TimescaleDB. The Ubuntu
 installer generates `psql_credentials.py` with its dedicated read-only viewer
 account. Editing panels and creating snapshots writes files rather than
 database records.
+
+The installer grants the viewer access to all existing `public` tables and
+future `public` tables created by the configured administrator. Use that
+administrator to create measurement tables, programmatically or through Adminer.
+The installer also creates a separate acquisition account (`ida_database_acquisition`)
+with SELECT and INSERT access to these tables and access to their generated IDs.
+It can read and add records, but cannot update/delete existing records or
+create/alter/drop tables. See [Remote data ingestion](remote-ingestion.md)
+for site-specific remote-access setup and the acquisition connection example.
 
 For a manual installation, copy
 [psql_credentials.example.py](../psql_credentials.example.py) to the private

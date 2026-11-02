@@ -7,6 +7,13 @@ It creates the database and accounts, and loads
 [synthetic measurements and an editable example panel](#synthetic-data-reference)
 so there is data to explore immediately.
 
+The installed viewer reads from the database locally. Sending your own
+measurements from other computers uses the installed acquisition account and
+network access appropriate to your site. The acquisition account, PostgreSQL TLS
+and certificate renewal are configured automatically. Follow
+[Remote data ingestion](../docs/remote-ingestion.md)
+for suggested manual setup; the installer leaves remote database access closed.
+
 For a tour after installation, see [Using the viewer](../docs/using-viewer.md).
 For existing servers and configuration details, see
 [Configuration](../docs/configuration.md).
@@ -80,7 +87,7 @@ Edit **`deploy/settings.yml`** using [the example](settings.example.yml):
 | `ida_url_path` | Optional URL path: `/` (default), `/data`, or a nested path such as `/tools/data`. |
 | `ida_database_name`, `ida_database_port` | The application database name and local PostgreSQL port. |
 | `ida_timezone` | The timezone for your measurement timestamps; defaults to `UTC`. |
-| Database administrator and viewer accounts | Separate database usernames and passwords for administration and read-only queries. |
+| Database administrator, acquisition and viewer accounts | Three distinct database usernames and passwords for administration, acquisition (read and insert), and read-only queries. |
 | Website and CMS accounts | A website login and a separate CMS login for managing panel files. |
 
 Replace every example password. Passwords must contain 12–72 printable ASCII
@@ -149,14 +156,18 @@ CDNs supplying the viewer's JavaScript and CSS libraries.
 | --- | --- |
 | Website | `ida_web_username` and its password protect the whole site, including Adminer and JSON/CSV downloads. |
 | CMS | `ida_cms_username` and its password initialise a separate login for managing panel files. Later changes use the CMS administration page. |
-| Database administrator | Owns the application database and can create tables through Adminer. It is not a PostgreSQL superuser and cannot create databases or roles. |
+| Database administrator | Owns the application database; can create, alter and drop its measurement tables, and read, add, update or delete their records. It is not a PostgreSQL superuser. |
+| Database acquisition | `ida_database_acquisition` can read measurements and add new records, including generated IDs. It cannot update/delete existing records or create/alter/drop tables. |
 | Database viewer | Used by the viewer for queries. It can SELECT from public tables and defaults to read-only transactions. |
 
-Tables created in `public` by the configured database administrator automatically
-grant SELECT to the viewer. Tables created by another owner or in another schema
-need appropriate grants. Configure ingestion accounts when setting up your own
-measurements and their data-writing process; see the
-[data guide](../docs/data-and-filters.md#table-structure).
+Create measurement tables in `public` as the configured database administrator,
+either programmatically or through Adminer. Those tables automatically grant
+SELECT to the viewer, and SELECT plus INSERT to the acquisition account, with
+generated-ID access. This also applies to future tables created by the
+administrator. Follow
+the [remote ingestion guide](../docs/remote-ingestion.md) to allow acquisition
+computers to connect. See the
+[data guide](../docs/data-and-filters.md#table-structure) for their record format.
 
 The installer generates `config.ini` and `psql_credentials.py` in your checkout,
 owned by you and readable by Apache/Python. HTTP downloads of both are blocked.
@@ -191,7 +202,15 @@ renewal and serves only the separate ACME challenge directory.
 Apache reads the certificate and key from
 `/etc/letsencrypt/live/YOUR_HOSTNAME/`. Certbot's systemd timer handles renewal;
 a deployment hook validates the Apache configuration and reloads it after a
-successful renewal. Certificate paths do not need to be supplied manually.
+successful renewal.
+
+The installer also enables PostgreSQL TLS using copies of the same certificate
+and key in `/etc/postgresql/16/main/tls/`. The private key is owned by root with
+read access for the `postgres` group and no access for other users. A separate
+renewal hook refreshes both files and reloads PostgreSQL. Certificate paths do
+not need to be supplied manually.
+The installer verifies the database certificate's trust chain and hostname and
+checks that the viewer's database connection uses TLS.
 
 If initial issuance fails, correct the DNS or port-access problem reported by
 Certbot and rerun the installer. HTTPS is enabled after the certificate and key
@@ -204,9 +223,10 @@ the official [PostgreSQL](https://www.postgresql.org/download/linux/ubuntu/) and
 APT repositories, selecting their current candidate versions for the configured
 package names. See the [package list](ansible/tasks/packages.yml).
 
-PostgreSQL listens only on `127.0.0.1` at the configured port. Local operating-system
-administration uses the `postgres` account; application TCP connections require
-SCRAM passwords. Waveform links start disabled and can be enabled through
+PostgreSQL listens only on `127.0.0.1` at the configured port, with TLS available.
+Local operating-system administration uses the `postgres` account; application
+TCP connections require SCRAM passwords. Waveform links start disabled and can
+be enabled through
 [configuration](../docs/configuration.md#waveform-links).
 
 ## Updates and diagnostics

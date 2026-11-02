@@ -6,9 +6,11 @@
     login_db: "{{ ida_database_name }}"
     login_user: "{{ ida_database_reader }}"
     login_password: "{{ ida_database_reader_password }}"
+    ssl_mode: require
     query: >-
       SELECT current_user AS viewer_user,
       current_setting('transaction_read_only') AS read_only,
+      (SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()) AS uses_tls,
       has_database_privilege(current_user, current_database(), 'CREATE') AS can_create_schemas,
       has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_tables,
       (SELECT extversion FROM pg_extension WHERE extname = 'timescaledb') AS timescaledb_version
@@ -21,10 +23,81 @@
     that:
       - ida_viewer_connection.query_result[0].viewer_user == ida_database_reader
       - ida_viewer_connection.query_result[0].read_only == 'on'
+      - ida_viewer_connection.query_result[0].uses_tls
       - not ida_viewer_connection.query_result[0].can_create_schemas
       - not ida_viewer_connection.query_result[0].can_create_tables
       - ida_viewer_connection.query_result[0].timescaledb_version | length > 0
     quiet: true
+
+- name: Verify the acquisition account's read-and-append permissions
+  community.postgresql.postgresql_query:
+    login_host: 127.0.0.1
+    login_port: "{{ ida_database_port }}"
+    login_db: "{{ ida_database_name }}"
+    login_user: "{{ ida_database_acquisition }}"
+    login_password: "{{ ida_database_acquisition_password }}"
+    ssl_mode: require
+    query: >-
+      SELECT current_user AS acquisition_user,
+      current_setting('transaction_read_only') AS read_only,
+      (SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()) AS uses_tls,
+      has_database_privilege(current_user, current_database(), 'CREATE') AS can_create_schemas,
+      has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_tables,
+      (SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls
+       FROM pg_roles WHERE rolname = current_user) AS has_admin_privileges,
+      (SELECT COALESCE(bool_and(has_table_privilege(current_user, c.oid, 'INSERT')), true)
+       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')) AS can_insert_all_tables,
+      (SELECT COALESCE(bool_and(has_table_privilege(current_user, c.oid, 'SELECT')), true)
+       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')) AS can_read_all_tables,
+      (SELECT COALESCE(bool_or(has_table_privilege(current_user, c.oid, 'UPDATE,DELETE,TRUNCATE')
+                              OR pg_has_role(c.relowner, 'USAGE')), false)
+       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')) AS has_disallowed_table_access,
+      (SELECT COALESCE(bool_and(has_sequence_privilege(current_user, c.oid, 'USAGE')), true)
+       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind = 'S') AS can_use_generated_ids
+  register: ida_acquisition_connection
+  changed_when: false
+  no_log: true
+
+- name: Check that acquisition can read and append without modifying tables
+  ansible.builtin.assert:
+    that:
+      - ida_acquisition_connection.query_result[0].acquisition_user == ida_database_acquisition
+      - ida_acquisition_connection.query_result[0].read_only == 'off'
+      - ida_acquisition_connection.query_result[0].uses_tls
+      - not ida_acquisition_connection.query_result[0].can_create_schemas
+      - not ida_acquisition_connection.query_result[0].can_create_tables
+      - not ida_acquisition_connection.query_result[0].has_admin_privileges
+      - ida_acquisition_connection.query_result[0].can_insert_all_tables
+      - ida_acquisition_connection.query_result[0].can_read_all_tables
+      - not ida_acquisition_connection.query_result[0].has_disallowed_table_access
+      - ida_acquisition_connection.query_result[0].can_use_generated_ids
+    quiet: true
+
+- name: Verify PostgreSQL's certificate against the system trust store
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/openssl
+      - s_client
+      - -starttls
+      - postgres
+      - -connect
+      - "127.0.0.1:{{ ida_database_port }}"
+      - -servername
+      - "{{ ida_hostname }}"
+      - -verify_hostname
+      - "{{ ida_hostname }}"
+      - -verify_return_error
+      - -CApath
+      - /etc/ssl/certs
+      - -brief
+    stdin: ''
+    stdin_add_newline: false
+  changed_when: false
+  timeout: 30
 
 # Verify the public certificate's chain and hostname against the local listener,
 # using SNI so this does not depend on public-IP hairpin routing.
@@ -108,4 +181,5 @@
       - "Application files and config.ini: {{ ida_web_root }} (owned by {{ ida_install_user }})."
       - "Website login: {{ ida_web_username }}; use the password in your private settings file."
       - "Database: {{ ida_database_name }}; Adminer administration account: {{ ida_database_admin }}."
+      - "Acquisition account: {{ ida_database_acquisition }} (read and append; remote access is configured separately)."
       - "Example panel: https://{{ ida_hostname }}{{ ida_url_prefix }}/load-panel.php?filename=example-panel (created on first installation)."

@@ -63,6 +63,10 @@ Your acquisition or import process inserts measurements into the database.
 The viewer reads those records and turns them into graphs; the example seed
 script supplies synthetic measurements for trying out that workflow.
 
+The installer configures PostgreSQL TLS and keeps database connections local.
+To send measurements from other computers, follow [Remote data ingestion](docs/remote-ingestion.md)
+for network access and a connection example using the installed acquisition account.
+
 Each measurement table has a timestamp and a numerical `channels` array. A row
 can hold one pressure reading, several simultaneous measurements, an individual
 detector pulse, or an accumulated spectrum. The
@@ -71,7 +75,8 @@ array meanings, SQL examples and available filters.
 
 Each installation uses one database. Panel folders organise experiments and
 can be nested independently of the database tables. The installer creates a
-read-only database account for graph queries; website access and panel editing
+read-only database account for graph queries and a separate acquisition account
+for reading measurements and adding new records; website access and panel editing
 are configured separately. See [Configuration](docs/configuration.md) for
 connection settings, integrations and options for publishing prepared panels.
 
@@ -82,6 +87,7 @@ connection settings, integrations and options for publishing prepared panels.
 | [Ubuntu installation](deploy/README.md) | Install the complete stack with example data, sign in and maintain the server. |
 | [Using the viewer](docs/using-viewer.md) | Homepage, table status, panels, editing, downloads and snapshots. |
 | [Data records and filters](docs/data-and-filters.md) | Measurement tables, `channels` arrays, count rates and spectra. |
+| [Remote data ingestion](docs/remote-ingestion.md) | Writer accounts, access to existing/future tables, TLS and network configuration. |
 | [Configuration](docs/configuration.md) | Settings files, manual setup, waveform links and private/public deployments. |
 
 Component references: [OneFileCMS](onefilecms/README.md) and

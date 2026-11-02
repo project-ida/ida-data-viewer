@@ -15,9 +15,14 @@ ida_database_name: experiments
 ida_database_port: 5432
 ida_timezone: UTC
 
-# This account owns the database and can create tables through Adminer.
+# Administrator: owns the database and manages its measurement tables and records.
 ida_database_admin: ida_admin
 ida_database_admin_password: CHANGE_ME
+
+# Acquisition account: reads measurements and appends new records.
+# It cannot update/delete existing records or create/alter/drop tables.
+ida_database_acquisition: ida_acquisition
+ida_database_acquisition_password: CHANGE_ME
 
 # This is the read-only account written to the viewer's psql_credentials.py.
 ida_database_reader: ida_reader

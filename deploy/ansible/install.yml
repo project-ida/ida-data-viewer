@@ -21,11 +21,17 @@
       ansible.builtin.import_tasks: tasks/application.yml
     - name: Configure Apache and HTTPS
       ansible.builtin.import_tasks: tasks/apache.yml
+    - name: Configure PostgreSQL TLS with the issued certificate
+      ansible.builtin.import_tasks: tasks/postgresql-tls.yml
     - name: Create the example measurements and panel
       ansible.builtin.import_tasks: tasks/example.yml
     - name: Verify the installation
       ansible.builtin.import_tasks: tasks/verify.yml
   handlers:
+    - name: Reload PostgreSQL
+      ansible.builtin.systemd_service:
+        name: "{{ ida_postgresql_service }}"
+        state: reloaded
     - name: Restart PostgreSQL
       ansible.builtin.systemd_service:
         name: "{{ ida_postgresql_service }}"

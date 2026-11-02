@@ -31,8 +31,9 @@ SELECT create_hypertable('example_pressure', 'time');
 ```
 
 Replace `example_pressure` with your table name. Run these commands in the
-application database with an account allowed to create tables. TimescaleDB must
-already be enabled there. The Ubuntu installer creates the database, enables
+application database as the configured database administrator, either from a
+script or through Adminer. TimescaleDB must already be enabled there. The
+Ubuntu installer creates the database, enables
 the extension and adds the example tables. Create additional measurement tables
 for your own data as needed.
 
@@ -52,10 +53,11 @@ time windows must use a consistent timezone. The viewer's `display_timezone`
 setting controls the homepage's table timestamps; it does not convert stored
 records or graph-query time windows.
 
-Use the database owner or an ingestion account to insert measurements. The
-viewer itself uses a read-only database account. See
+Use the installed acquisition account to read measurements and insert new
+records. The viewer itself uses a read-only database account. See
 [database configuration](configuration.md#database-configuration) for connection
-settings and account setup.
+settings, and [Remote data ingestion](remote-ingestion.md) for connections from
+acquisition computers using this account.
 
 ## What goes in `channels`?
 

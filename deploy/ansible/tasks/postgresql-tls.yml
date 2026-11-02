@@ -1,0 +1,51 @@
+---
+# The database starts before ACME issuance. Configure TLS only once the
+# website's certificate exists, without changing the local-only listener.
+- name: Create PostgreSQL's private certificate directory
+  ansible.builtin.file:
+    path: "{{ ida_postgresql_tls_dir }}"
+    state: directory
+    owner: root
+    group: postgres
+    mode: '0750'
+
+- name: Install the certificate chain for PostgreSQL
+  ansible.builtin.copy:
+    src: "{{ ida_certificate_dir }}/fullchain.pem"
+    dest: "{{ ida_postgresql_tls_dir }}/server.crt"
+    remote_src: true
+    owner: root
+    group: postgres
+    mode: '0644'
+  notify: Reload PostgreSQL
+
+- name: Install the private key for PostgreSQL
+  ansible.builtin.copy:
+    src: "{{ ida_certificate_dir }}/privkey.pem"
+    dest: "{{ ida_postgresql_tls_dir }}/server.key"
+    remote_src: true
+    owner: root
+    group: postgres
+    mode: '0640'
+  no_log: true
+  notify: Reload PostgreSQL
+
+- name: Enable PostgreSQL TLS using the installed certificate
+  ansible.builtin.template:
+    src: postgresql-tls.conf.j2
+    dest: "/etc/postgresql/{{ ida_postgresql_version }}/main/conf.d/ida-tls.conf"
+    owner: root
+    group: postgres
+    mode: '0644'
+  notify: Reload PostgreSQL
+
+- name: Refresh PostgreSQL's certificate after successful renewal
+  ansible.builtin.template:
+    src: postgresql-renew.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/ida-postgresql-reload
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Load the PostgreSQL certificate before verifying the installation
+  ansible.builtin.meta: flush_handlers

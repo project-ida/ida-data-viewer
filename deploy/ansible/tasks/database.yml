@@ -38,7 +38,7 @@
     community.postgresql.postgresql_ext: *ida_database_connection
     community.postgresql.postgresql_privs: *ida_database_connection
   block:
-    - name: Create the database owner and read-only viewer accounts
+    - name: Create the database administrator, acquisition and viewer accounts
       community.postgresql.postgresql_user:
         name: "{{ item.name }}"
         password: "{{ item.password }}"
@@ -49,6 +49,8 @@
           password: "{{ ida_database_admin_password }}"
         - name: "{{ ida_database_reader }}"
           password: "{{ ida_database_reader_password }}"
+        - name: "{{ ida_database_acquisition }}"
+          password: "{{ ida_database_acquisition_password }}"
       no_log: true
 
     - name: Default viewer transactions to read-only
@@ -81,13 +83,14 @@
         state: absent
         trust_input: false
 
-    - name: Allow the viewer to connect to the database
+    - name: Allow the viewer and acquisition to connect to the database
       community.postgresql.postgresql_privs:
         login_db: "{{ ida_database_name }}"
         type: database
-        roles: "{{ ida_database_reader }}"
+        roles: "{{ item }}"
         privs: CONNECT
         trust_input: false
+      loop: ["{{ ida_database_reader }}", "{{ ida_database_acquisition }}"]
 
     - name: Restrict public schema creation
       community.postgresql.postgresql_privs:
@@ -121,3 +124,30 @@
         roles: "{{ ida_database_reader }}"
         privs: SELECT
         trust_input: false
+
+    - name: Grant acquisition read and insert access to existing public tables and IDs
+      community.postgresql.postgresql_privs:
+        login_db: "{{ ida_database_name }}"
+        type: "{{ item.type }}"
+        objs: "{{ item.objs }}"
+        roles: "{{ ida_database_acquisition }}"
+        privs: "{{ item.privs }}"
+        trust_input: false
+      loop:
+        - {type: schema, objs: public, privs: USAGE}
+        - {type: table, objs: ALL_IN_SCHEMA, privs: 'SELECT,INSERT'}
+        - {type: sequence, objs: ALL_IN_SCHEMA, privs: USAGE}
+
+    - name: Grant acquisition access to future tables and IDs created by the administrator
+      community.postgresql.postgresql_privs:
+        login_db: "{{ ida_database_name }}"
+        type: default_privs
+        schema: public
+        objs: "{{ item.objs }}"
+        target_roles: "{{ ida_database_admin }}"
+        roles: "{{ ida_database_acquisition }}"
+        privs: "{{ item.privs }}"
+        trust_input: false
+      loop:
+        - {objs: TABLES, privs: 'SELECT,INSERT'}
+        - {objs: SEQUENCES, privs: USAGE}

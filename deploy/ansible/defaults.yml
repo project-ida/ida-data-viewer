@@ -11,6 +11,7 @@ ida_acme_root: /var/lib/ida-acme
 ida_certificate_dir: "/etc/letsencrypt/live/{{ ida_hostname }}"
 ida_postgresql_version: "16"
 ida_postgresql_service: postgresql@16-main
+ida_postgresql_tls_dir: "/etc/postgresql/{{ ida_postgresql_version }}/main/tls"
 ida_php_version: "8.3"
 ida_application_files:
   - index.php
