@@ -177,6 +177,17 @@ up to the generation time on each refresh. Set it explicitly for a completed
 experiment. Graph and band times can override the panel window; see
 [time windows and granularity](data-and-filters.md#time-windows-and-granularity).
 
+Large time-series graphs can sometimes appear blank even though hovering shows
+data values. If this happens, increase the affected bands' **Gran.** setting—for
+example, to `10` or `100`—then refresh the panel. A value of `10` keeps every
+tenth point for plotting. Granularity samples points rather than averaging them,
+so brief features may be omitted. The **db data fullres** download retains the
+generated results before granularity is applied.
+
+A similar rendering problem is reported in
+[Dygraphs issue #949](https://github.com/danvk/dygraphs/issues/949).
+Follow that upstream issue for investigation and any future fixes.
+
 Notes are plain text and can contain clickable web addresses. Use notes and
 band labels to explain measurement units, array entries and experimental context.
 The [filter reference](data-and-filters.md#applying-a-filter-in-a-panel) gives
